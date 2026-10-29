@@ -1,0 +1,12 @@
+name: Changelog PR comments
+on:
+  workflow_run:
+    workflows: ["release-notes"]
+    types: [completed]
+permissions:
+  pull-requests: write
+  actions: read
+jobs:
+  comment:
+    if: github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion != 'cancelled' && github.event.workflow_run.conclusion != 'skipped'
+    uses: elastic/docs-actions/.github/workflows/release-notes-comments.yml@v1
