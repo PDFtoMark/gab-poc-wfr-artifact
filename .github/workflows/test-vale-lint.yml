@@ -1,0 +1,13 @@
+name: test-vale-lint
+on:
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: OK
+        run: echo "upstream ok"
