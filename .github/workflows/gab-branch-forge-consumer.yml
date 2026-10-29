@@ -1,0 +1,21 @@
+name: GAB Branch Forge Consumer
+on:
+  workflow_run:
+    workflows: ["GAB Release Workflow"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'development'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report
+        run: |
+          echo "FORGED_DEPLOY_TRIGGERED=true"
+          echo "event=${{ github.event.workflow_run.event }}"
+          echo "head_branch=${{ github.event.workflow_run.head_branch }}"
+          echo "head_repo=${{ github.event.workflow_run.head_repository.full_name }}"
+          echo "conclusion=${{ github.event.workflow_run.conclusion }}"
