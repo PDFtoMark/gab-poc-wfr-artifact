@@ -1,0 +1,31 @@
+name: gab-poc-vale-wfr-probe
+on:
+  workflow_run:
+    workflows: ["test-vale-lint"]
+    types: [completed]
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Dump workflow_run payload pull_requests
+        env:
+          PAYLOAD: ${{ toJSON(github.event.workflow_run.pull_requests) }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+        run: |
+          echo "HEAD_BRANCH=$HEAD_BRANCH"
+          echo "HEAD_REPO=$HEAD_REPO"
+          echo "PULL_REQUESTS_JSON=$PAYLOAD"
+      - name: Injection sink (same expression as elastic/docs-actions test-vale-report.yml)
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          PR_NUMBER=$(echo '${{ toJSON(github.event.workflow_run.pull_requests) }}' | jq -r '.[0].number')
+          echo "PR_NUMBER=$PR_NUMBER"
