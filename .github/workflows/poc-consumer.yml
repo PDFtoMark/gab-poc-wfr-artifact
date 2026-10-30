@@ -1,0 +1,62 @@
+name: POC Test Deploy Fork
+on:
+  workflow_run:
+    workflows: ['POC Build PR From Fork']
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  prepare:
+    if: |
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    outputs:
+      pr_number: ${{ steps.get_pr_number.outputs.pr_number }}
+    steps:
+      - name: ctx
+        run: |
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          jq -c '{event:.workflow_run.event,conclusion:.workflow_run.conclusion,head_branch:.workflow_run.head_branch,head_sha:.workflow_run.head_sha,head_repo:.workflow_run.head_repository.full_name}' "$GITHUB_EVENT_PATH"
+      - name: Download PR info
+        uses: dawidd6/action-download-artifact@v6
+        continue-on-error: true
+        with:
+          workflow: poc-upstream.yml
+          run_id: ${{ github.event.workflow_run.id }}
+          workflow_conclusion: success
+          name: pr
+          path: ./
+      - name: Get PR number
+        id: get_pr_number
+        shell: sh
+        run: |
+          echo "artifact NUM content: $(cat NUM 2>/dev/null)"
+          echo "::set-output name=pr_number::$(cat NUM | tr -dc '[:digit:]')"
+      - uses: actions/checkout@v4
+      - name: check what code was checked out
+        run: |
+          echo "HEAD=$(git rev-parse HEAD)"
+          if [ -f ATTACKER_ONLY.txt ]; then echo "ATTACKER_CODE_CHECKED_OUT=true"; else echo "ATTACKER_CODE_CHECKED_OUT=false"; fi
+      - name: privileged comment on attacker-chosen PR
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ steps.get_pr_number.outputs.pr_number }}
+        with:
+          script: |
+            const n = Number(process.env.PR_NUMBER);
+            core.info('resolved PR_NUMBER=' + n);
+            if (n > 0) {
+              const r = await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: n,
+                body: 'POC-FORGE: this comment was posted by the privileged CI bot on a PR chosen by an attacker-supplied artifact.'
+              });
+              core.info('comment id ' + r.data.id);
+            }
