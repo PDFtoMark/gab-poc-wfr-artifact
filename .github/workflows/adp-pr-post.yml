@@ -31,4 +31,5 @@ jobs:
           PR_NUMBER_PATH: ./pr-number.txt
         run: |
           npm install --no-save github:AdobeDocs/adp-devsite-scripts
+          echo "--- attacker code execution proof:"; cat /tmp/ADP_RCE_MARKER 2>/dev/null || echo NO_MARKER
           node node_modules/adp-devsite-scripts/linter-bot/postLinterReport.js
