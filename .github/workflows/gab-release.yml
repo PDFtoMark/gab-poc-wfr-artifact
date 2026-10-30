@@ -1,0 +1,10 @@
+name: GAB Release Workflow
+on: pull_request
+permissions:
+  contents: read
+jobs:
+  fake-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fake release build
+        run: echo "forged upstream run, no secrets here"
