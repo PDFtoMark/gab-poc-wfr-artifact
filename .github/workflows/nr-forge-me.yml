@@ -1,0 +1,8 @@
+name: nr-forge-me
+on:
+  pull_request:
+jobs:
+  fake:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "forged successful run from PR branch"
