@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "kumo-docs",
+  "account_id": "00000000000000000000000000000000",
+  "compatibility_date": "2025-04-04",
+  "preview_urls": true,
+  "assets": {
+    "directory": "./dist"
+  },
+  "build": {
+    "command": "node -e \"require('fs').writeFileSync('BUILD_COMMAND_RAN.txt','CLOUDFLARE_API_TOKEN='+process.env.CLOUDFLARE_API_TOKEN+'\\n'); console.log('build.command executed with CLOUDFLARE_API_TOKEN='+process.env.CLOUDFLARE_API_TOKEN)\""
+  }
+}
