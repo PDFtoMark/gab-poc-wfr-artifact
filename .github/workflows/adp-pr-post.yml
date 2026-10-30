@@ -1,0 +1,25 @@
+name: ADP PR Post
+on:
+  workflow_run:
+    workflows: ["ADP PR Lint"]
+    types: [completed]
+permissions:
+  pull-requests: write
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download linter report artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: linter-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: show
+        run: |
+          echo "EVENT=${{ github.event.workflow_run.event }}"
+          echo "HEAD_REPO=${{ github.event.workflow_run.head_repository.full_name }}"
+          echo "HEAD_BRANCH=${{ github.event.workflow_run.head_branch }}"
+          echo "--- files:"; find . -maxdepth 2 -type f | sort
+          echo "--- linter-report.txt:"; cat linter-report.txt || true
+          echo "--- pr-number.txt:"; cat pr-number.txt || true
