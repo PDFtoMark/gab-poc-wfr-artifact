@@ -1,0 +1,26 @@
+name: nr-watcher
+on:
+  workflow_run:
+    workflows: ["nr-forge-me"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  probe:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: dump
+        env:
+          PROBE_SECRET: ${{ secrets.PROBE_SECRET }}
+        run: |
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "HEAD=$(git rev-parse HEAD)"
+          echo "HEAD_SUBJECT=$(git log -1 --format=%s)"
+          echo "UPSTREAM_HEAD_SHA=${{ github.event.workflow_run.head_sha }}"
+          echo "UPSTREAM_HEAD_BRANCH=${{ github.event.workflow_run.head_branch }}"
+          echo "UPSTREAM_EVENT=${{ github.event.workflow_run.event }}"
+          echo "UPSTREAM_NAME=${{ github.event.workflow_run.name }}"
+          if [ -n "$PROBE_SECRET" ]; then echo "SECRET_PRESENT=yes len=${#PROBE_SECRET}"; else echo "SECRET_PRESENT=no"; fi
