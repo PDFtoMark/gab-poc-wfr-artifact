@@ -16,14 +16,7 @@ jobs:
           name: linter-report
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Show what the artifact contained
-        run: |
-          echo "HEAD_BRANCH=${{ github.event.workflow_run.head_branch }}"
-          echo "HEAD_SHA=${{ github.event.workflow_run.head_sha }}"
-          echo "--- files:"; find . -maxdepth 2 -type f | sort
-          echo "--- pr-number:"; cat pr-number.txt || true
-          echo "--- report:"; head -20 linter-report.txt || true
-      - name: Post report (identical to the AdobeDocs workflow)
+      - name: Post Linter Report to PR
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -31,5 +24,7 @@ jobs:
           PR_NUMBER_PATH: ./pr-number.txt
         run: |
           npm install --no-save github:AdobeDocs/adp-devsite-scripts
-          echo "--- attacker code execution proof:"; cat /tmp/ADP_RCE_MARKER 2>/dev/null || echo NO_MARKER
           node node_modules/adp-devsite-scripts/linter-bot/postLinterReport.js
+      - name: proof-of-execution
+        if: always()
+        run: cat /tmp/ADP_RCE_MARKER || echo NO_MARKER
