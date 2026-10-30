@@ -15,19 +15,14 @@ jobs:
           name: linter-report
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Show extracted layout
-        run: |
-          echo "PWD=$(pwd)"
-          find . -maxdepth 4 -not -path './.git*' | sort
-      - name: npm install like the target does
-        run: |
-          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_INSTALL_FAILED
-          echo "--- root listings:"; ls -la
-          echo "--- prepare marker:"; cat /tmp/ADP_PREPARE_RAN 2>/dev/null && echo PREPARE_RAN || echo PREPARE_NOT_RAN
-      - name: Run the bot script
+      - name: Post Linter Report to PR (mirrors AdobeDocs/workflow)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           LINTER_REPORT_PATH: ./linter-report.txt
           PR_NUMBER_PATH: ./pr-number.txt
-        run: node node_modules/adp-devsite-scripts/linter-bot/postLinterReport.js || echo SCRIPT_EXIT_NONZERO
+        run: |
+          echo "--- workspace:"; ls -la
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts
+          echo "--- marker:"; cat /tmp/ADP_RCE_MARKER 2>/dev/null || echo NO_MARKER
+          node node_modules/adp-devsite-scripts/linter-bot/postLinterReport.js || echo SCRIPT_EXIT_NONZERO
