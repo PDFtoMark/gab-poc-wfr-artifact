@@ -1,0 +1,53 @@
+name: Kumo Preview Deploy (PoC)
+# Mirrors .github/workflows/preview-deploy.yml of cloudflare/kumo-astro:
+#   privileged workflow_run consumer that (1) checks out wrangler.jsonc from main,
+#   (2) downloads the fork's docs-preview-dist artifact next to it,
+#   (3) runs `wrangler versions upload` with CLOUDFLARE_API_TOKEN in env.
+on:
+  workflow_run:
+    workflows: ["Kumo Preview (PoC)"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout wrangler config from main
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: packages/kumo-docs-astro/wrangler.jsonc
+          ref: main
+      - name: Trusted config BEFORE artifact download
+        run: cat packages/kumo-docs-astro/wrangler.jsonc
+      - name: Download docs artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-preview-dist
+          path: packages/kumo-docs-astro/dist/
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Config AFTER artifact download (should be the main-branch copy)
+        run: cat packages/kumo-docs-astro/wrangler.jsonc
+      - name: Simulate `wrangler versions upload` custom build step
+        working-directory: packages/kumo-docs-astro
+        env:
+          CLOUDFLARE_API_TOKEN: FAKE_CF_API_TOKEN_PLACEHOLDER
+          CLOUDFLARE_ACCOUNT_ID: "00000000000000000000000000000000"
+        run: |
+          node -e '
+            const fs = require("fs");
+            const cfg = JSON.parse(fs.readFileSync("wrangler.jsonc", "utf8"));
+            const cmd = cfg.build.command;
+            console.log("build.command ->", cmd);
+            require("child_process").execSync(cmd, {stdio: "inherit", env: process.env});
+          '
+          echo "== marker written by build.command =="
+          cat BUILD_COMMAND_RAN.txt
+      - name: GITHUB_TOKEN persisted by checkout is readable from the workspace
+        run: |
+          echo "persisted credential header present: $(grep -c 'http.https://github.com/.extraheader' .git/config)"
