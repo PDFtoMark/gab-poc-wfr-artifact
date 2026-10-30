@@ -1,0 +1,11 @@
+name: Upload crafted artifact with mid-path traversal
+inputs:
+  name:
+    default: docs-preview-dist
+  extract-dir-abs:
+    required: true
+  pairs:
+    required: true
+runs:
+  using: node20
+  main: plant.js
