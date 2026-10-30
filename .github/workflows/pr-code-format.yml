@@ -1,0 +1,17 @@
+name: "Check code formatting"
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'users/**'
+
+jobs:
+  code_formatter:
+    runs-on: ubuntu-24.04
+    if: github.repository == 'llvm/llvm-project'
+    steps:
+      - run: echo "base-branch version (guarded)"
