@@ -27,7 +27,7 @@ jobs:
           printf '42\n' > /tmp/root/pr-number.txt
           printf '```\nINJECTED MARKDOWN LINE\n' > /tmp/root/linter-report.txt
           ls -la /tmp/root
-      - name: Upload linter report (attacker version: absolute paths share /tmp/root as LCA)
+      - name: Upload linter report (attacker version - absolute paths share tmp root as LCA)
         uses: actions/upload-artifact@v7
         with:
           name: linter-report
