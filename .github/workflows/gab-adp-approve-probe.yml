@@ -1,0 +1,15 @@
+name: GAB ADP Approve Probe
+on:
+  workflow_dispatch:
+permissions:
+  pull-requests: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Try to approve PR 11 with a pull-requests:write token
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "approve:"; gh api -X POST repos/$GITHUB_REPOSITORY/pulls/11/reviews -f event=APPROVE -f body="github-actions bot approval probe" 2>&1 | head -5
+          echo "comment-other-pr:"; gh api -X POST repos/$GITHUB_REPOSITORY/issues/3/comments -f body="token probe" 2>&1 | head -3
