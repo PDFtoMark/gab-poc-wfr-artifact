@@ -1,0 +1,52 @@
+name: GAB NRDOT Release Tag
+on:
+  workflow_run:
+    workflows: ["GAB NRDOT Upstream"]
+    types:
+      - completed
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  setup-e2e:
+    name: Setup E2E Gating
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-outputs.outputs.version }}
+      exists: ${{ steps.set-outputs.outputs.exists }}
+    steps:
+      - name: Checkout (main)
+        uses: actions/checkout@v4
+      - name: Set Outputs (mirrors release-tag.yaml)
+        id: set-outputs
+        run: |
+          version=2.7.4
+          if git rev-parse "$version" >/dev/null 2>&1; then
+            echo "Tag already exists."
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag does not exist."
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$version" >> $GITHUB_OUTPUT
+  e2e-gate:
+    name: E2E Gate
+    if: ${{ needs.setup-e2e.outputs.exists == 'false' && github.event.workflow_run.conclusion == 'success' }}
+    needs: setup-e2e
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/gab-nrdot-deploy-e2e.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_sha }}
+      workflow_run_id: ${{ github.event.workflow_run.id }}
+    secrets:
+      dummy_secret: ${{ secrets.GAB_DUMMY_SECRET }}
+  tag-release:
+    runs-on: ubuntu-latest
+    needs: [e2e-gate, setup-e2e]
+    steps:
+      - name: privileged tag step
+        run: echo "TAG RELEASE PRIVILEGED JOB RAN"
