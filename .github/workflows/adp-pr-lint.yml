@@ -1,0 +1,19 @@
+name: ADP PR Lint
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: build report
+        run: |
+          mkdir -p out
+          printf 'BASE_VERSION\n' > out/linter-report.txt
+          echo "${{ github.event.pull_request.number }}" > out/pr-number.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: out/
