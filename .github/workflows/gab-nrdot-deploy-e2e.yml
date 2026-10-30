@@ -41,6 +41,13 @@ jobs:
       - name: Does that git object exist locally
         run: |
           git cat-file -t "${{ steps.get-sha.outputs.sha }}" || echo "OBJECT_ABSENT_BUT_GIT_REV_PARSE_ACCEPTED_IT"
+      - name: Probe rev-parse of a SHA absent from the clone
+        run: |
+          set +e
+          out=$(git rev-parse deadbeefdeadbeefdeadbeefdeadbeefdeadbeef)
+          echo "rev_parse_exit=$?"
+          echo "rev_parse_out=[$out]"
+          git cat-file -t deadbeefdeadbeefdeadbeefdeadbeefdeadbeef || echo "absent_object_confirmed"
       - name: Download artifact from triggering run
         uses: actions/download-artifact@v4
         with:
