@@ -4,7 +4,7 @@ on:
     workflows: ["GAB NRDOT Upstream"]
     types:
       - completed
-    branches: [main]
+    branches: [main, gab-fork-main]
 
 permissions:
   contents: read
