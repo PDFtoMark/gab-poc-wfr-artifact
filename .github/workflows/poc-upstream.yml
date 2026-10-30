@@ -1,0 +1,20 @@
+name: POC Build PR From Fork
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
+    runs-on: ubuntu-latest
+    steps:
+      - name: legit build
+        run: |
+          echo "LEGIT_UPSTREAM_VERSION_RAN"
+          mkdir -p __pr
+          echo "${{ github.event.number }}" > __pr/NUM
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr
+          path: __pr/
