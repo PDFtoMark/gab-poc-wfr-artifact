@@ -13,8 +13,10 @@ const { StringValue } = require(`${A}/lib/generated`)
 
 async function main() {
   const name = process.env.INPUT_NAME || 'docs-preview-dist'
-  const extractDir = process.env.INPUT_EXTRACT_DIR_ABS
-  const workspace = process.env.GITHUB_WORKSPACE
+  const extractDir =
+    process.env['INPUT_EXTRACT-DIR-ABS'] || process.env.INPUT_EXTRACT_DIR_ABS
+  const workspace = process.env.GITHUB_WORKSPACE || process.cwd()
+  if (!extractDir) throw new Error('extract-dir-abs input missing')
   const pairs = (process.env.INPUT_PAIRS || '').split(',').filter(Boolean)
   const spec = []
   for (const pair of pairs) {
