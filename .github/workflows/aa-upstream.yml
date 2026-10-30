@@ -2,8 +2,18 @@ name: Test
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 jobs:
   t:
     runs-on: ubuntu-latest
     steps:
-      - run: echo upstream-ok
+      - name: craft
+        run: |
+          mkdir -p out
+          printf '8\n' > out/pr_number.txt
+          printf 'hello\n' > 'out/$(id).txt'
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-poc
+          path: out
