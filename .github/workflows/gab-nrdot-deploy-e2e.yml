@@ -1,0 +1,99 @@
+name: GAB NRDOT Deploy and E2E
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: "Git ref (commit SHA, tag, or branch) to use for artifact retrieval"
+        type: string
+        required: false
+        default: ""
+      workflow_run_id:
+        description: "Workflow run ID to use for artifact retrieval"
+        type: string
+        required: false
+    secrets:
+      dummy_secret:
+        required: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  setup:
+    name: Setup Workflow
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.get-image-tag.outputs.image_tag }}
+      distro-version: ${{ steps.get-image-tag.outputs.distro_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Get commit SHA from ref
+        id: get-sha
+        run: |
+          ref="${{ inputs.ref || github.sha }}"
+          sha=$(git rev-parse "$ref")
+          echo "Resolved '$ref' to SHA: $sha"
+          echo "sha=$sha" >> $GITHUB_OUTPUT
+      - name: Does that git object exist locally
+        run: |
+          git cat-file -t "${{ steps.get-sha.outputs.sha }}" || echo "OBJECT_ABSENT_BUT_GIT_REV_PARSE_ACCEPTED_IT"
+      - name: Download artifact from triggering run
+        uses: actions/download-artifact@v4
+        with:
+          name: goreleaser_output_nrdot-collector_${{ steps.get-sha.outputs.sha }}
+          path: ./artifacts/
+          run-id: ${{ inputs.workflow_run_id }}
+          github-token: ${{ github.token }}
+      - name: Output docker manifest sha
+        id: get-image-tag
+        run: |
+          version=$(cat ./artifacts/dist/metadata.json | jq -r '.version')
+          docker_manifest_digest=$(jq -r '.[] | select(.type == "Docker Manifest") | .extra.Digest' ./artifacts/dist/artifacts.json | head -1)
+          echo "version=[$version]"
+          echo "digest=[$docker_manifest_digest]"
+          echo "distro_version=${version}" >> $GITHUB_OUTPUT
+          echo "image_tag=${version}@${docker_manifest_digest}" >> $GITHUB_OUTPUT
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [setup]
+    env:
+      GAB_DUMMY_SECRET: ${{ secrets.dummy_secret }}
+    steps:
+      - name: Install fake helm that emulates --post-renderer execution
+        run: |
+          cat > /tmp/helm <<'EOS'
+          #!/bin/bash
+          args=("$@")
+          post=""
+          pargs=()
+          i=0
+          while [ $i -lt ${#args[@]} ]; do
+            case "${args[$i]}" in
+              --post-renderer) post="${args[$((i+1))]}"; i=$((i+2));;
+              --post-renderer-args) pargs+=("${args[$((i+1))]}"); i=$((i+2));;
+              *) i=$((i+1));;
+            esac
+          done
+          echo "FAKE_HELM_ARGV: $*"
+          if [ -n "$post" ]; then printf 'manifest\n' | "$post" "${pargs[@]}"; fi
+          EOS
+          chmod +x /tmp/helm
+      - name: Run Action-based E2E Tests (target spec line shape)
+        env:
+          IMAGE_TAG: ${{ needs.setup.outputs.image-tag }}
+          IMAGE_REPO: example/collector
+        run: |
+          export PATH=/tmp:$PATH
+          SCENARIO_TAG=e2e-test
+          chart_version=0.1.0
+          helm upgrade --install ${SCENARIO_TAG} open-telemetry/opentelemetry-collector \
+            --namespace nr-${SCENARIO_TAG} --version ${chart_version} \
+            --values ./host-collector-values.yaml \
+            --set image.tag=${IMAGE_TAG} \
+            --set image.repository=${IMAGE_REPO}
