@@ -48,6 +48,7 @@ jobs:
           '
           echo "== marker written by build.command =="
           cat BUILD_COMMAND_RAN.txt
-      - name: GITHUB_TOKEN persisted by checkout is readable from the workspace
+      - name: GITHUB_TOKEN persisted by checkout (key names only, no values)
         run: |
-          echo "persisted credential header present: $(grep -c 'http.https://github.com/.extraheader' .git/config)"
+          git config --local --name-only --get-regexp 'http\..*\.extraheader' | sed 's/^/persisted git config key: /'
+          test -f .git/config && echo ".git/config exists in the workspace"
