@@ -9,7 +9,7 @@ on:
 permissions:
   actions: read # to download dependency graph artifact
   contents: write # to submit dependency graph
-  pull-requests: read # to resolve PR info for fork PRs
+  pull-requests: write # to resolve PR info for fork PRs
 
 jobs:
   dependency-review:
@@ -108,7 +108,7 @@ jobs:
           header: dependency-review
           hide_and_recreate: true
           path: openssf-report.html
-          GITHUB_TOKEN: ${{ secrets.ACTIONS_BOT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - if: always()
         name: show proof
