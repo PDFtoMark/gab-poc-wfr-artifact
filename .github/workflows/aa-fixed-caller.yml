@@ -1,0 +1,16 @@
+name: aa-fixed-caller
+on:
+  workflow_run:
+    workflows: [Test]
+    types: [completed]
+
+permissions:
+  actions: read
+  issues: write
+  checks: read
+  statuses: read
+  pull-requests: write
+
+jobs:
+  comment:
+    uses: ./.github/workflows/aa-local-callee.yml
