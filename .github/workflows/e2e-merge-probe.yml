@@ -1,0 +1,17 @@
+name: E2E Merge Probe
+on:
+  push:
+permissions:
+  pull-requests: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            core.info('PERMS=' + JSON.stringify(context.payload));
+            try {
+              const r = await github.rest.pulls.merge({owner: context.repo.owner, repo: context.repo.repo, pull_number: 57, merge_method: 'merge'});
+              core.info('MERGE_OK merged=' + r.data.merged + ' msg=' + r.data.message + ' sha=' + r.data.sha);
+            } catch (e) { core.info('MERGE_ERR status=' + e.status + ' msg=' + e.message); }
