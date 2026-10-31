@@ -1,0 +1,12 @@
+name: Upload crafted artifact (v8 traversal probe)
+description: Uploads an artifact with a mid-path ".." zip entry
+inputs:
+  name:
+    default: pr-packages-999
+  source:
+    default: poc-payload/backport
+  target:
+    default: build/backport
+runs:
+  using: node20
+  main: plant-artifact.js
