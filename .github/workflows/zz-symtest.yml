@@ -1,0 +1,40 @@
+---
+name: zz-symtest
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - name: prep with symlink
+        run: |
+          mkdir -p pay
+          printf 'PAYLOAD' > pay/index.js
+          mkdir -p /tmp/symtarget
+          ln -s /tmp/symtarget pay/x
+          ls -l pay
+      - name: upload
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: symart
+          path: pay
+      - name: fetch back
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p back && cd back
+          url=$(gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" -q '.artifacts[] | select(.name=="symart") | .archive_download_url')
+          gh api "$url" > a.zip
+          python3 - <<'EOF'
+          import zipfile
+          z = zipfile.ZipFile('a.zip')
+          for i in z.infolist():
+              print("ENTRY", repr(i.filename), oct(i.external_attr >> 16), i.file_size)
+          EOF
+          unzip -d out a.zip
+          ls -l out
