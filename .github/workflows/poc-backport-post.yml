@@ -1,0 +1,81 @@
+name: POC Backport post checklist
+on:
+  workflow_run:
+    workflows: ["Backport — detect packages"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  post-checklist:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Download artifact
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          name: pr-packages-${{ github.event.workflow_run.id }}
+          path: artifacts
+
+      - name: Validate artifact and find checklist comment
+        id: find-comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          ARTIFACT: artifacts/pr-packages.json
+        run: |
+          if [[ ! -f "$ARTIFACT" ]]; then
+            echo "Artifact not found — exiting"
+            exit 0
+          fi
+
+          PR_NUMBER=$(jq -r '.pr_number' "$ARTIFACT")
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+          MATCHING=$(gh api "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+            --paginate \
+            --jq '.[] | select(.body | contains("<!-- backport-checklist -->"))' \
+            | jq -s '.')
+
+          COUNT=$(jq 'length' <<< "$MATCHING")
+          if [[ "$COUNT" -eq 0 ]]; then
+            echo "No checklist comment found on PR #$PR_NUMBER — skipping"
+            exit 0
+          fi
+
+          echo "comment_id=$(jq -r 'first.id // empty' <<< "$MATCHING")" >> "$GITHUB_OUTPUT"
+
+      - name: Render and post checklist comment
+        if: steps.find-comment.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          ARTIFACT: artifacts/pr-packages.json
+          PR_NUMBER: ${{ steps.find-comment.outputs.pr_number }}
+          COMMENT_ID: ${{ steps.find-comment.outputs.comment_id }}
+        run: |
+          echo "pr_number=${PR_NUMBER}"
+          echo "comment_id=${COMMENT_ID}"
+          EXISTING_BODY=""
+          if [[ -n "$COMMENT_ID" ]]; then
+            EXISTING_BODY=$(gh api "repos/$REPOSITORY/issues/comments/$COMMENT_ID" \
+              --jq '.body // empty')
+            echo "READ_COMMENT_BODY=${EXISTING_BODY}"
+          fi
+          NEW_BODY=$(jq -r '.packages[0]' "$ARTIFACT")
+          BODY_FILE=$(mktemp)
+          printf '%s' "$NEW_BODY" > "$BODY_FILE"
+          if [[ -n "$COMMENT_ID" ]]; then
+            gh api --method DELETE "repos/$REPOSITORY/issues/comments/$COMMENT_ID"
+            echo "DELETED comment $COMMENT_ID"
+          fi
+          gh api --method POST \
+            "repos/$REPOSITORY/issues/$PR_NUMBER/comments" \
+            --field body=@"$BODY_FILE"
+          echo "POSTED comment on $PR_NUMBER"
