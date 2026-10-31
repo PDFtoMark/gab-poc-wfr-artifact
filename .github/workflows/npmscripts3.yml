@@ -1,0 +1,53 @@
+name: npmscripts3
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: build evil tarball
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/evil"
+          cd "$GITHUB_WORKSPACE/evil"
+          cat > package.json <<'JSON'
+          {"name":"poc-evil","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > post.js <<'JS'
+          require('fs').writeFileSync('/tmp/EVIL1', 'executed');
+          JS
+          npm pack --silent >/dev/null
+          ls -la
+      - name: allowScripts object dep
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/e" && cd "$GITHUB_WORKSPACE/e"
+          cp ../evil/poc-evil-1.0.0.tgz .
+          cat > package.json <<'JSON'
+          {"name":"e","version":"1.0.0","private":true,"dependencies":{"poc-evil":"file:./poc-evil-1.0.0.tgz"},"allowScripts":{"poc-evil":true}}
+          JSON
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          cat /tmp/EVIL1 2>/dev/null || echo NO_EVIL1
+      - name: allowScripts star
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/f" && cd "$GITHUB_WORKSPACE/f"
+          cp ../evil/poc-evil-1.0.0.tgz .
+          cat > package.json <<'JSON'
+          {"name":"f","version":"1.0.0","private":true,"dependencies":{"poc-evil":"file:./poc-evil-1.0.0.tgz"},"allowScripts":{"*":true}}
+          JSON
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          cat /tmp/EVIL1 2>/dev/null || echo NO_EVIL1_F
+      - name: npmrc allow-scripts dep
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/g" && cd "$GITHUB_WORKSPACE/g"
+          cp ../evil/poc-evil-1.0.0.tgz .
+          printf 'allow-scripts[]=poc-evil\naudit=false\nfund=false\n' > .npmrc
+          cat > package.json <<'JSON'
+          {"name":"g","version":"1.0.0","private":true,"dependencies":{"poc-evil":"file:./poc-evil-1.0.0.tgz"}}
+          JSON
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          cat /tmp/EVIL1 2>/dev/null || echo NO_EVIL1_G
+      - name: npm config docs
+        run: npm help config 2>/dev/null | grep -iA4 "allow-scripts" | head -30
