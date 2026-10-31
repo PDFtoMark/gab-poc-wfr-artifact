@@ -1,0 +1,45 @@
+name: ZZ Xrepo push probe
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout other public repo (like prebid/prebid-server)
+        uses: actions/checkout@v4
+        with:
+          repository: actions/checkout
+          ref: main
+          path: preview-repo
+          fetch-depth: 0
+      - name: attempt push to foreign repo
+        if: always()
+        run: |
+          echo "checkout_dir_present=$(test -d preview-repo/.git && echo yes || echo no)"
+          cd preview-repo || exit 0
+          git remote -v
+          git config --global user.name "probe"
+          git config --global user.email "probe@example.com"
+          mkdir -p .probe-dir && date > .probe-dir/t.txt
+          git add .probe-dir
+          git commit -m "probe commit" >/dev/null 2>&1 || true
+          set +e
+          git push origin HEAD:gab-probe-branch > /tmp/push.log 2>&1
+          rc=$?
+          set -e
+          echo "PUSH_RC=$rc"
+          tail -5 /tmp/push.log
+      - name: push to own repo control
+        if: always()
+        run: |
+          set +e
+          git clone --depth 1 "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" own-repo >/dev/null 2>&1
+          cd own-repo || exit 0
+          git config user.name probe; git config user.email probe@example.com
+          date > own.txt; git add own.txt; git commit -m own >/dev/null 2>&1 || true
+          git push origin HEAD:gab-own-probe-branch > /tmp/push2.log 2>&1
+          echo "OWN_PUSH_RC=$?"
+          tail -3 /tmp/push2.log
