@@ -1,0 +1,9 @@
+name: Publish to Public NPM
+on:
+  workflow_dispatch:
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: forged upstream step
+        run: echo "FORGED_SOURCE_RUN_OK"
