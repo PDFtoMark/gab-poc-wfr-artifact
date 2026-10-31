@@ -1,0 +1,140 @@
+name: npm trust poc
+
+permissions: {}
+
+on:
+  workflow_run:
+    types: [completed]
+    workflows: [npm-poc-release]
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  NPM_CONFIG_PROVENANCE: true
+  NPM_REGISTRY_URL: "https://registry.npmjs.org"
+
+jobs:
+  publish-arch:
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+      }}
+    outputs:
+      RELEASE_VERSION: ${{ steps.release-version.outputs.RELEASE_VERSION }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set Isolated Artifact Directory
+        id: paths
+        run: |
+          set -euo pipefail
+          printf 'artifact_dir=%s\n' "$RUNNER_TEMP/foundry_artifacts" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare Isolated Artifact Directory
+        env:
+          ARTIFACT_DIR: ${{ steps.paths.outputs.artifact_dir }}
+        run: |
+          mkdir -p "$ARTIFACT_DIR"
+          ls -la "$ARTIFACT_DIR" || true
+
+      - name: Download Release Assets
+        uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+          pattern: "foundry_*"
+          path: ${{ steps.paths.outputs.artifact_dir }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@3d267786b128fe76c2f16a390aa2448b815359f3 # v2
+        with:
+          bun-version: latest
+
+      - name: Derive RELEASE_VERSION
+        id: release-version
+        working-directory: ./npm
+        env:
+          PROVENANCE: true
+          ARTIFACT_DIR: ${{ steps.paths.outputs.artifact_dir }}
+        run: |
+          set -euo pipefail
+
+          echo "Artifacts in $ARTIFACT_DIR:"
+          ls -la "$ARTIFACT_DIR" || true
+
+          first_file=$(ls "$ARTIFACT_DIR"/foundry_* 2>/dev/null | head -n1 || true)
+          if [[ -z "${first_file}" ]]; then
+            echo "No foundry artifacts found to publish" >&2
+            exit 1
+          fi
+          version_part=$(basename "$first_file")
+          version_part=${version_part#foundry_}
+          export RELEASE_VERSION=${version_part%%_*}
+          echo "Detected RELEASE_VERSION=$RELEASE_VERSION"
+
+          printf 'RELEASE_VERSION=%s\n' "$RELEASE_VERSION" >>"$GITHUB_OUTPUT"
+
+      - name: Stage Binary Into Package
+        working-directory: ./npm
+        env:
+          RELEASE_VERSION: ${{ steps.release-version.outputs.RELEASE_VERSION }}
+          ARTIFACT_DIR: ${{ steps.paths.outputs.artifact_dir }}
+        run: |
+          set -euo pipefail
+
+          bun ./scripts/stage-from-artifact.mjs \
+            --tool 'forge' \
+            --platform 'linux' \
+            --arch 'amd64' \
+            --release-version "$RELEASE_VERSION" \
+            --artifact-dir "$ARTIFACT_DIR"
+
+      - name: Sanity Check Binary
+        working-directory: ./npm
+        run: |
+          set -euo pipefail
+          TOOL='forge'
+          PLATFORM='linux'
+          ARCH='amd64'
+
+          PKG_DIR="./@foundry-rs/${TOOL}-${PLATFORM}-${ARCH}"
+          BIN="$PKG_DIR/bin/${TOOL}"
+          echo "Verifying binary at: $BIN"
+          ls -la "$BIN"
+          if [[ ! -f "$BIN" ]]; then
+            echo "ERROR: Binary not found at $BIN" >&2
+            exit 1
+          fi
+          if [[ ! -x "$BIN" ]]; then
+            echo "ERROR: Binary not marked executable" >&2
+            exit 1
+          fi
+
+      - name: Prove publishable tarball contains attacker binary
+        working-directory: ./npm
+        run: |
+          set -euo pipefail
+          echo "trigger head repo: ${{ github.event.workflow_run.head_repository.full_name }}"
+          echo "trigger event: ${{ github.event.workflow_run.event }}"
+          echo "trigger workflow: ${{ github.event.workflow_run.name }}"
+          echo "resolved release version: ${{ steps.release-version.outputs.RELEASE_VERSION }}"
+          cd ./@foundry-rs/forge-linux-amd64
+          bun pm pack
+          TGZ=$(ls -1 *.tgz | head -n1)
+          echo "packed=$TGZ"
+          tar -xzf "$TGZ" -C . package/bin/forge
+          echo "----- package/bin/forge from the publishable tarball -----"
+          cat package/bin/forge
+          echo "----- end -----"
+          echo "NPM_TOKEN configured in target workflow: ${{ secrets.NPM_TOKEN != '' }}"
