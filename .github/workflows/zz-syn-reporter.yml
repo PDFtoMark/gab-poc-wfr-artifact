@@ -1,0 +1,27 @@
+---
+## Byte-for-byte equivalent of elastic/synthetics .github/workflows/test-reporter.yml
+## (only the watched workflow name is changed, since the probe producer is named syn-ci).
+name: test-reporter
+
+on:
+  workflow_run:
+    workflows:
+      - syn-ci
+    types:
+      - completed
+
+permissions:
+  contents: read
+  actions: read
+  checks: write
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: elastic/oblt-actions/test-report@v1
+        with:
+          artifact: /test-results(.*)/
+          name: '${{ github.event.workflow_run.name }} - Test Report $1'
+          path: "**/junit*.xml"
+          reporter: java-junit
