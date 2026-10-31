@@ -125,11 +125,10 @@ async function upload(name, zipBuf) {
     }
   }
   const candidates = [
-    {workflow_run_backend_id: runId, workflow_job_run_backend_id: jobId, name, version: 7, mime_type: {value: 'application/zip'}},
-    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: 7},
-    {workflow_run_backend_id: runId, workflow_job_run_backend_id: jobId, name, version: 7},
-    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: '7', mimeType: {value: 'application/zip'}},
-    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: 4, mimeType: {value: 'application/zip'}}
+    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: 7, mimeType: 'application/zip'},
+    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: 4, mimeType: 'application/zip'},
+    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: 7, mimeType: {value: 'application/zip'}, expiresAt: undefined},
+    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: 7, mimeType: 'application/x-zip-compressed'},
   ];
   let create = null;
   for (const body of candidates) {
