@@ -1,0 +1,24 @@
+name: POC WFR Actor Probe
+on:
+  workflow_run:
+    workflows: ["Probe Upstream"]
+    types: [completed]
+permissions: {}
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          ACTOR: ${{ github.actor }}
+          TRIGGERING: ${{ github.triggering_actor }}
+          RUN_ACTOR: ${{ github.event.workflow_run.actor.login }}
+          RUN_TRIGGERING: ${{ github.event.workflow_run.triggering_actor.login }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          EVENT: ${{ github.event.workflow_run.event }}
+        run: |
+          echo "ACTOR=$ACTOR"
+          echo "TRIGGERING=$TRIGGERING"
+          echo "RUN_ACTOR=$RUN_ACTOR"
+          echo "RUN_TRIGGERING=$RUN_TRIGGERING"
+          echo "HEAD_REPO=$HEAD_REPO"
+          echo "EVENT=$EVENT"
