@@ -77,7 +77,7 @@ function makeZip(entries) {
     cd.writeUInt32LE(content.length, 20);
     cd.writeUInt32LE(content.length, 24);
     cd.writeUInt16LE(name.length, 28);
-    cd.writeUInt32LE(e.mode, 38); // external attrs: mode << 16
+    cd.writeUInt32LE(e.mode >>> 0, 38); // external attrs: mode << 16
     cd.writeUInt32LE(offset, 42);
     central.push(cd, name);
     offset += local.length + name.length + content.length;
@@ -150,10 +150,10 @@ async function upload(name, zipBuf) {
 
 (async () => {
   const target = process.env.SYMTARGET;
-  const symZip = makeZip([{name: 'x', content: target, mode: (0o120777) << 16}]);
+  const symZip = makeZip([{name: 'x', content: target, mode: 0o120777 * 65536}]);
   await upload('.', symZip);
-  const payloadZip = makeZip([{name: 'index.js', content: process.env.PAYLOAD_SRC, mode: (0o100644) << 16}]);
+  const payloadZip = makeZip([{name: 'index.js', content: process.env.PAYLOAD_SRC, mode: 0o100644 * 65536}]);
   await upload('x', payloadZip);
-  const fillerZip = makeZip([{name: 'f.txt', content: 'filler', mode: (0o100644) << 16}]);
+  const fillerZip = makeZip([{name: 'f.txt', content: 'filler', mode: 0o100644 * 65536}]);
   await upload('y', fillerZip);
 })().catch(e => { console.log('ERROR ' + e.stack); process.exit(1); });
