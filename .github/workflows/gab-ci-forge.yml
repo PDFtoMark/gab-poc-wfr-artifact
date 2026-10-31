@@ -9,8 +9,8 @@ jobs:
       - name: Attacker-controlled artifact
         run: |
           mkdir -p ./pr
-          printf '%s\n' '111' > ./pr/pr_number
-          printf '%s\n' 'POC-INJECTED-SHA: artifact downloaded from an attacker-forged "Continuous Integration" run' > ./pr/pr_sha
+          printf '%s\n' '109' > ./pr/pr_number
+          printf '%s\n' 'POC-INJECTED-SHA: attacker text injected onto PR 109 via forged workflow_run artifact
           printf '%s\n' 'deadbeefcafe' > ./pr/merge_sha
       - name: Upload PR Number
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
