@@ -124,18 +124,21 @@ async function upload(name, zipBuf) {
       runId = p[1]; jobId = p[2];
     }
   }
-  console.log('SCP=' + claims.scp);
-  const body = {
-    workflowRunBackendId: runId,
-    workflowJobRunBackendId: jobId,
-    name: name,
-    version: 7,
-    mimeType: {value: 'application/zip'}
-  };
-  console.log('BODY=' + JSON.stringify(body));
-  const create = await httpJson(`${base}/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact`, token, body);
-  console.log(`CREATE[${name}] ${create.status} ${create.body.slice(0, 300)}`);
-  if (create.status !== 200) return;
+  const candidates = [
+    {workflow_run_backend_id: runId, workflow_job_run_backend_id: jobId, name, version: 7, mime_type: {value: 'application/zip'}},
+    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: 7},
+    {workflow_run_backend_id: runId, workflow_job_run_backend_id: jobId, name, version: 7},
+    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: '7', mimeType: {value: 'application/zip'}},
+    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name, version: 4, mimeType: {value: 'application/zip'}}
+  ];
+  let create = null;
+  for (const body of candidates) {
+    const r = await httpJson(`${base}/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact`, token, body);
+    console.log(`CREATE_TRY ${JSON.stringify(Object.keys(body))} -> ${r.status} ${r.body.slice(0, 200)}`);
+    if (r.status === 200) { create = r; break; }
+  }
+  console.log(`CREATE[${name}] ${create ? create.status : 'none'}`);
+  if (!create) return;
   const parsed = JSON.parse(create.body);
   const url = parsed.signedUploadUrl || parsed.signed_upload_url;
   const put = await putBlob(url, zipBuf, 'application/zip');
