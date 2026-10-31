@@ -9,7 +9,7 @@ jobs:
     steps:
       - run: |
           mkdir -p releases
-          printf 'LEGIT-BUILD\n' > releases/poc-malware-linux-amd64.tar.gz
+          printf 'ATTACKER CONTROLLED PAYLOAD\n' > releases/poc-malware-linux-amd64.tar.gz
       - uses: actions/upload-artifact@v4
         with:
           name: release-artifacts
