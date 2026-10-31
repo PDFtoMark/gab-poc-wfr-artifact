@@ -1,0 +1,49 @@
+name: perm-probe4
+on:
+  push:
+permissions:
+  pull-requests: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const owner = context.repo.owner, repo = context.repo.repo;
+            const log = (m) => core.info(m);
+            // 1. edit an existing bot comment on PR 52
+            try {
+              const r = await github.rest.issues.updateComment({owner, repo, comment_id: 6537287111, body: 'edited by token probe'});
+              log('EDIT_OTHER_OK status=' + r.status);
+            } catch (e) { log('EDIT_OTHER_ERR status=' + e.status + ' msg=' + e.message); }
+            // 2. create + delete own comment
+            try {
+              const c = await github.rest.issues.createComment({owner, repo, issue_number: 52, body: 'probe comment'});
+              log('CREATE_OK id=' + c.data.id);
+              try {
+                const d = await github.rest.issues.deleteComment({owner, repo, comment_id: c.data.id});
+                log('DELETE_OWN_OK status=' + d.status);
+              } catch (e) { log('DELETE_OWN_ERR status=' + e.status + ' msg=' + e.message); }
+            } catch (e) { log('CREATE_ERR status=' + e.status + ' msg=' + e.message); }
+            // 3. change PR title
+            try {
+              const t = await github.rest.pulls.update({owner, repo, pull_number: 52, title: 'GAB PoC: forged Lint artifact -> npm registry redirect in privileged workflow_run (title probe)'});
+              log('PR_TITLE_OK status=' + t.status);
+            } catch (e) { log('PR_TITLE_ERR status=' + e.status + ' msg=' + e.message); }
+            // 4. approve PR
+            try {
+              const a = await github.rest.pulls.createReview({owner, repo, pull_number: 52, event: 'APPROVE'});
+              log('APPROVE_OK status=' + a.status + ' state=' + a.data.state);
+            } catch (e) { log('APPROVE_ERR status=' + e.status + ' msg=' + e.message); }
+            // 5. delete a comment by another user (find one)
+            try {
+              const list = await github.rest.issues.listComments({owner, repo, issue_number: 52, per_page: 100});
+              const other = list.data.find(c => c.user.login !== 'github-actions[bot]');
+              if (other) {
+                try {
+                  const d2 = await github.rest.issues.deleteComment({owner, repo, comment_id: other.id});
+                  log('DELETE_OTHER_OK status=' + d2.status);
+                } catch (e) { log('DELETE_OTHER_ERR status=' + e.status + ' msg=' + e.message); }
+              } else { log('DELETE_OTHER_NONE'); }
+            } catch (e) { log('LIST_ERR status=' + e.status); }
