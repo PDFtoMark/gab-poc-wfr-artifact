@@ -1,0 +1,65 @@
+name: CI Report
+
+on:
+  workflow_run:
+    workflows: ["CI PIPELINE"]
+    types:
+      - completed
+
+permissions:
+  checks: write
+  actions: write
+  contents: write
+  issues: write
+  pull-requests: write
+  statuses: write
+
+env:
+  HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+  REPO: ${{ github.repository }}
+
+jobs:
+  INFO:
+    runs-on: ubuntu-latest
+    if: >
+      github.event.workflow_run.event == 'pull_request' &&
+      (github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.conclusion == 'failure')
+    outputs:
+      PR_NUMBER: ${{ steps.pr_details.outputs.PR_NUMBER }}
+      BASE_REF: ${{ steps.pr_details.outputs.BASE_REF }}
+      HEAD_REF: ${{ steps.pr_details.outputs.HEAD_REF }}
+    steps:
+      - name: Download workflow artifact - PR
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ github.token }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: "pr_num"
+
+      - name: Read the pr num file
+        id: pr_num_reader
+        uses: juliangruber/read-file-action@v1
+        with:
+          path: ./pr_num.txt
+
+      - name: PR DETAILS
+        id: pr_details
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.pr_num_reader.outputs.content }}
+          REPO: ${{ github.repository }}
+        run: |
+          PR_NUMBER=`echo ${PR_NUMBER}`
+          pr_info=`gh pr view ${PR_NUMBER} -R ${REPO} --json baseRefName,headRefName,state,title`
+          base_ref=$(echo ${pr_info} | jq -r .baseRefName)
+          head_ref=$(echo ${pr_info} | jq -r .headRefName)
+          pr_state=$(echo ${pr_info} | jq -r .state)
+          echo "BASE_REF=${base_ref}" >> $GITHUB_OUTPUT
+          echo "HEAD_REF=${head_ref}" >> $GITHUB_OUTPUT
+          echo "PR_STATE=${pr_state}" >> $GITHUB_OUTPUT
+          echo "PR_NUMBER=${PR_NUMBER}" >> $GITHUB_OUTPUT
+
+      - name: INFO
+        run: |
+          echo ${{ steps.pr_details.outputs.PR_NUMBER }}
+          echo ${{ steps.pr_details.outputs.BASE_REF }}
