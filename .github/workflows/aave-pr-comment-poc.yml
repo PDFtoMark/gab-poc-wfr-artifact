@@ -1,0 +1,18 @@
+name: Aave PR Comment PoC
+
+on:
+  workflow_run:
+    workflows: [Tests-PR]
+    types:
+      - completed
+
+permissions:
+  actions: read
+  issues: write
+  checks: read
+  statuses: read
+  pull-requests: write
+
+jobs:
+  comment:
+    uses: aave-dao/github-workflows/.github/workflows/comment.yml@main
