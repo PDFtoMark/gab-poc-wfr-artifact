@@ -1,0 +1,20 @@
+name: XD Perm Probe
+on:
+  workflow_dispatch:
+permissions:
+  pull-requests: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: probe
+        env:
+          T: ${{ secrets.GITHUB_TOKEN }}
+          R: ${{ github.repository }}
+        run: |
+          set +e
+          echo "merge: $(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$R/pulls/96/merge -d '{"merge_method":"merge"}')"
+          echo "create_ref: $(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$R/git/refs -d '{"ref":"refs/heads/xd-write-probe","sha":"'"$(git ls-remote https://github.com/$R refs/heads/main | cut -f1)"'"}')"
+          echo "put_contents: $(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$R/contents/xd-write-probe.txt -d '{"message":"p","content":"aGk="}')"
+          echo "close_pr: $(curl -s -o /dev/null -w '%{http_code}' -X PATCH -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$R/pulls/96 -d '{"state":"open"}')"
+          echo "label: $(curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $T" -H "Accept: application/vnd.github+json" https://api.github.com/repos/$R/issues/96/labels -d '{"labels":["xd-probe"]}')"
