@@ -1,0 +1,34 @@
+name: GAB Docs API WFR Probe
+on:
+  workflow_run:
+    workflows: ["Publish to Public NPM"]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: context
+        run: |
+          echo "EVENT_NAME=${GITHUB_EVENT_NAME}"
+          echo "REF=${GITHUB_REF}"
+          echo "SHA=${GITHUB_SHA}"
+          echo "WORKFLOW_REF=${GITHUB_WORKFLOW_REF}"
+          echo "REPO=${GITHUB_REPOSITORY}"
+      - name: triggering-run info
+        run: |
+          echo "TRIG_EVENT=${{ github.event.workflow_run.event }}"
+          echo "TRIG_NAME=${{ github.event.workflow_run.name }}"
+          echo "TRIG_HEAD_BRANCH=${{ github.event.workflow_run.head_branch }}"
+          echo "TRIG_HEAD_SHA=${{ github.event.workflow_run.head_sha }}"
+          echo "TRIG_HEAD_REPO=${{ github.event.workflow_run.head_repository.full_name }}"
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: which commit got checked out
+        run: |
+          echo "CHECKED_OUT=$(git rev-parse HEAD)"
+          git log -1 --format='SUBJECT=%s'
