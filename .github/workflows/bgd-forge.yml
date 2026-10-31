@@ -1,0 +1,19 @@
+name: Foundry test
+
+on:
+  pull_request:
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft attacker artifact
+        run: |
+          mkdir -p out
+          echo "${{ github.event.pull_request.number }}" > out/pr_number.txt
+          printf 'artifact root file\n' > 'out/$(id).txt'
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-poc
+          path: out
