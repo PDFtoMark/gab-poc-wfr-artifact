@@ -1,0 +1,19 @@
+name: GAB dawidd6 v2 fork artifact probe
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact exactly like livepeer-data release.yaml (no run_id, defaults)
+        uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: build-and-deploy
+          name: preview-tarballs
+          path: releases/
+      - name: Show what was retrieved
+        run: |
+          echo "=== files"
+          find releases -type f | head -20
+          echo "=== listing"
+          ls -la releases/ || true
