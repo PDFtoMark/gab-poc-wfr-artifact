@@ -19,6 +19,10 @@ jobs:
       pull-requests: write
       actions: read
     steps:
+      - name: show actions dir
+        run: |
+          echo "workspace=$GITHUB_WORKSPACE"; ls -la /home/runner/work/ | head
+          ls -la /home/runner/work/_actions/LouisBrunner/checks-action/ 2>&1 | head
       - name: Download and Extract Artifacts
         env:
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
@@ -32,7 +36,7 @@ jobs:
             gh api "$url" > "$name.zip"
             unzip -d "$name" "$name.zip"
           done
-          echo "== tree"; ls -la .
+          echo "== tree"; ls -la .; ls -la /home/runner/work/_actions/LouisBrunner/checks-action/dfcbcf801bff1ea7f1414824fc28f2cd697b35da/dist 2>&1 | head
       - name: Report check status
         if: github.event.workflow_run.head_sha != ''
         uses: LouisBrunner/checks-action@dfcbcf801bff1ea7f1414824fc28f2cd697b35da # v3.0.0
