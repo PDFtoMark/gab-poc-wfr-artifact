@@ -1,0 +1,24 @@
+name: ZZ Cov Probe Producer
+on:
+  pull_request:
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  run-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare artifacts (payload supplied by the PR branch)
+        run: |
+          mkdir -p cov/pr-metadata
+          cp -r payload/. cov/ 2>/dev/null || true
+          [ -f cov/pr-metadata/head_sha ] || printf 'deadbeef\n' > cov/pr-metadata/head_sha
+          [ -f cov/pr-metadata/pr_number ] || printf '1\n' > cov/pr-metadata/pr_number
+          [ -f cov/pr-metadata/directories.json ] || printf '["demo"]\n' > cov/pr-metadata/directories.json
+          [ -f cov/cov.html ] || printf '<html></html>\n' > cov/cov.html
+          ls -laR cov | head -40
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage-results
+          path: cov
