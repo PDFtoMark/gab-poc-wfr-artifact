@@ -1,0 +1,21 @@
+name: ADP Target PR validation
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lint report
+        run: |
+          echo "legit lint report" > linter-report.txt
+          echo "${{ github.event.pull_request.number }}" > pr-number.txt
+      - name: Upload linter report
+        uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: |
+            linter-report.txt
+            pr-number.txt
+          if-no-files-found: ignore
