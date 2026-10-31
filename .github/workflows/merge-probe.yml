@@ -1,0 +1,20 @@
+name: merge-probe
+on:
+  pull_request:
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: probe merge and contents write
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          echo "--- perms: job token scoped to pull-requests:write only"
+          code=$(curl -s -o /tmp/merge.out -w '%{http_code}' -X PUT             -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/$REPO/pulls/$PR/merge" -d '{"merge_method":"squash"}')
+          echo "MERGE_HTTP=$code"; cat /tmp/merge.out; echo
+          code2=$(curl -s -o /tmp/ref.out -w '%{http_code}' -X POST             -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json"             "https://api.github.com/repos/$REPO/git/refs"             -d "{\"ref\":\"refs/heads/merge-probe-write\",\"sha\":\"${{ github.event.pull_request.head.sha }}\"}")
+          echo "CREATE_REF_HTTP=$code2"; cat /tmp/ref.out; echo
