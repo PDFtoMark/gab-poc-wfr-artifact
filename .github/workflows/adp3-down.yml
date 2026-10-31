@@ -16,15 +16,19 @@ jobs:
           name: linter-report
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
-      - name: inspect workspace
-        run: ls -la
+      - name: config probe
+        if: always()
+        run: |
+          npm --version
+          echo "--- ignore-scripts=$(npm config get ignore-scripts)"
+          npm config ls -l 2>/dev/null | grep -i -E "script|allow" | head -30 || true
+          npm install-scripts --help 2>&1 | head -30 || true
       - name: npm install exactly like target
         run: |
           npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_INSTALL_FAILED
       - name: check markers
         if: always()
         run: |
-          npm --version; node --version
           echo "--- markers:"
           cat marker-preinstall.txt 2>/dev/null || echo NO_PREINSTALL_MARKER
           cat marker-nodeopt.txt 2>/dev/null || echo NO_NODEOPT_MARKER
