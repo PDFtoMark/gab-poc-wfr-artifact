@@ -1,0 +1,37 @@
+name: ADP4 Post
+on:
+  workflow_run:
+    workflows: ["ADP4 Lint"]
+    types:
+      - completed
+
+permissions:
+  pull-requests: write
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    steps:
+      - name: Download linter report artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: linter-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post Linter Report to PR
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LINTER_REPORT_PATH: ./linter-report.txt
+          PR_NUMBER_PATH: ./pr-number.txt
+        run: |
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts
+          node node_modules/adp-devsite-scripts/linter-bot/postLinterReport.js || echo SCRIPT_EXIT_NONZERO
+
+      - name: proof-of-execution
+        if: always()
+        run: |
+          echo "--- proof marker:"
+          cat /tmp/ADP_RCE_MARKER 2>/dev/null || echo NO_MARKER
