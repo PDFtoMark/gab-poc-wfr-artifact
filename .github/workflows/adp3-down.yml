@@ -1,0 +1,30 @@
+name: ADP3 Post
+on:
+  workflow_run:
+    workflows: ["ADP3 Lint Up"]
+    types:
+      - completed
+permissions:
+  pull-requests: write
+jobs:
+  consume:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download linter report artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: linter-report
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: inspect workspace
+        run: ls -la
+      - name: npm install exactly like target
+        run: |
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_INSTALL_FAILED
+      - name: check markers
+        if: always()
+        run: |
+          npm --version; node --version
+          echo "--- markers:"
+          cat marker-preinstall.txt 2>/dev/null || echo NO_PREINSTALL_MARKER
+          cat marker-nodeopt.txt 2>/dev/null || echo NO_NODEOPT_MARKER
