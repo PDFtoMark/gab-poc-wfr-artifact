@@ -1,0 +1,20 @@
+---
+name: PR Validation
+on:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Craft artifact (benign baseline)
+        run: |
+          echo "false" > has-warnings.txt
+          echo "1" > pr-number.txt
+      - name: Upload lint results
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-results
+          path: |
+            has-warnings.txt
+            pr-number.txt
