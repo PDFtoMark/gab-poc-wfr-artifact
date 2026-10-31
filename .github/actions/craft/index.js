@@ -124,6 +124,7 @@ async function upload(name, zipBuf) {
       runId = p[1]; jobId = p[2];
     }
   }
+  console.log('SCP=' + claims.scp);
   const body = {
     workflowRunBackendId: runId,
     workflowJobRunBackendId: jobId,
@@ -131,6 +132,7 @@ async function upload(name, zipBuf) {
     version: 7,
     mimeType: {value: 'application/zip'}
   };
+  console.log('BODY=' + JSON.stringify(body));
   const create = await httpJson(`${base}/twirp/github.actions.results.api.v1.ArtifactService/CreateArtifact`, token, body);
   console.log(`CREATE[${name}] ${create.status} ${create.body.slice(0, 300)}`);
   if (create.status !== 200) return;
