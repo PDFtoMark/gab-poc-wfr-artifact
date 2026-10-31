@@ -1,0 +1,1 @@
+{"name": "poc-root", "version": "1.0.0", "private": true, "scripts": {"preinstall": "node -e \"console.log('ADP_ROOT_PREINSTALL_EXECUTED');require('fs').writeFileSync('/tmp/ADP_ROOT_MARKER','root-preinstall-ran')\""}}
