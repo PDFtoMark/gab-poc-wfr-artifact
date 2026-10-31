@@ -13,3 +13,4 @@ jobs:
         with:
           name: pr_num
           path: pr_num.txt
+ping
