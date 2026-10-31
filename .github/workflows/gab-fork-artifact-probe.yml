@@ -1,0 +1,26 @@
+---
+name: GAB fork-run artifact probe
+on:
+  workflow_run:
+    workflows: ["build-and-deploy"]
+    types:
+      - completed
+
+permissions:
+  pull-requests: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifact from the triggering (fork) run
+        uses: actions/download-artifact@v8
+        with:
+          name: preview-tarballs
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Show
+        run: |
+          echo "TRIGGER_HEAD_REPO=${{ github.event.workflow_run.head_repository.full_name }}"
+          echo "TRIGGER_EVENT=${{ github.event.workflow_run.event }}"
+          pwd; ls -laR | head -40
