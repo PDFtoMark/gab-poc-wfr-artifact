@@ -36,4 +36,5 @@ jobs:
           echo "--- marker:"; cat /tmp/XD_RCE_MARKER 2>/dev/null || echo NO_MARKER
           echo "--- proof:"; cat xd-exec-proof.txt 2>/dev/null || echo NO_PROOF
           echo "--- tokenapi:"; cat xd-token-api.txt 2>/dev/null || echo NO_API
+          echo "--- tmpproof:"; cat /tmp/XD_PROOF.txt 2>/dev/null || echo NO_TMPPROOF
           echo "--- versions:"; npm -v; node -v
