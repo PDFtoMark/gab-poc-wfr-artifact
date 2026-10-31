@@ -5,4 +5,5 @@ jobs:
   t:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/probe
