@@ -147,7 +147,7 @@ async function upload(name, zipBuf) {
     workflowJobRunBackendId: jobId,
     name: name,
     size: String(zipBuf.length),
-    hash: {value: 'sha256:' + crypto.createHash('sha256').update(zipBuf).digest('hex')}
+    hash: 'sha256:' + crypto.createHash('sha256').update(zipBuf).digest('hex')
   });
   console.log(`FINAL[${name}] ${fin.status} ${fin.body.slice(0, 300)}`);
 }
