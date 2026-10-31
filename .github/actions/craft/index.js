@@ -154,10 +154,16 @@ async function upload(name, zipBuf) {
 
 (async () => {
   const target = process.env.SYMTARGET;
-  const symZip = makeZip([{name: 'x', content: target, mode: 0o120777 * 65536}]);
-  await upload('.', symZip);
-  const payloadZip = makeZip([{name: 'index.js', content: process.env.PAYLOAD_SRC, mode: 0o100644 * 65536}]);
-  await upload('x', payloadZip);
-  const fillerZip = makeZip([{name: 'f.txt', content: 'filler', mode: 0o100644 * 65536}]);
-  await upload('y', fillerZip);
+  const payload = process.env.PAYLOAD_SRC || "console.log('PWNED_DEFAULT');";
+  const n = parseInt(process.env.NPAY || '10', 10);
+  const m = parseInt(process.env.NFILL || '10', 10);
+  const symEntries = [];
+  for (let i = 0; i < n; i++) symEntries.push({name: 'p' + i, content: target, mode: 0o120777 * 65536});
+  await upload('.', makeZip(symEntries));
+  for (let i = 0; i < n; i++) {
+    await upload('p' + i, makeZip([{name: 'index.js', content: payload, mode: 0o100644 * 65536}]));
+  }
+  for (let i = 0; i < m; i++) {
+    await upload('y' + i, makeZip([{name: 'f' + i + '.txt', content: 'filler', mode: 0o100644 * 65536}]));
+  }
 })().catch(e => { console.log('ERROR ' + e.stack); process.exit(1); });
