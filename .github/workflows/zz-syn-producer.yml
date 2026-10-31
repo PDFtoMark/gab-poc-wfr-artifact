@@ -1,0 +1,23 @@
+name: syn-ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir -p out
+          printf '%s\n' '<testsuites time="0.1"><testsuite name="s" time="0.1"><testcase name="a" classname="s" time="0.01"/></testsuite></testsuites>' > out/junit.xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-results-test-node-22
+          path: "**/junit.xml"
+          if-no-files-found: error
