@@ -3,7 +3,6 @@ name: CD Trigger POC-ART
 on:
   workflow_run:
     workflows: ["CD POC-ART"]
-    branches: ["main", "dev", "release/**"]
     types: ["completed"]
 
 jobs:
