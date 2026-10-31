@@ -19,7 +19,7 @@ jobs:
         run: |
           mkdir -p .artifacts/changelog-decision
           cat > .artifacts/changelog-decision/metadata.json <<'JSON'
-          {"pr_number": 109, "head_ref": "benign", "head_sha": "0000000000000000000000000000000000000000", "status": "no-label", "is_fork": true, "can_commit": false, "maintainer_can_modify": false, "label_table": "type:bug", "default_branch": "main"}
+          {"pr_number": 109, "head_ref": "poc", "head_sha": "1111111111111111111111111111111111111111", "status": "no-label", "is_fork": true, "can_commit": false, "maintainer_can_modify": false, "product_label_table": "**INJECTED BY AN UNPRIVILEGED PR:** this text came from attacker-controlled changelog-decision/metadata.json and was rendered by the privileged release-notes comment job. [click me](https://example.com/poc)", "default_branch": "main"}
           JSON
       - name: Upload decision artifact
         if: always()
