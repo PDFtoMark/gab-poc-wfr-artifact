@@ -1,0 +1,36 @@
+name: npmprobe
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: versions
+        run: |
+          node -v; npm -v
+          echo "ignore-scripts=$(npm config get ignore-scripts)"
+          npm config ls -l 2>/dev/null | grep -iE "script|allow" | head -30
+      - name: root lifecycle without npmrc
+        run: |
+          mkdir -p t1 && cd t1
+          printf '%s' '{"name":"t1","version":"1.0.0","private":true,"scripts":{"preinstall":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/M1\u0027,\u0027pre\u0027)\"","install":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/M1i\u0027,\u0027inst\u0027)\"","postinstall":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/M1p\u0027,\u0027post\u0027)\"","prepare":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/M1r\u0027,\u0027prep\u0027)\""}}' > package.json
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          ls -la /tmp/M1* 2>/dev/null || echo NO_MARKERS_T1
+      - name: root lifecycle with npmrc
+        run: |
+          mkdir -p t2 && cd t2
+          printf 'ignore-scripts=false\ndangerously-allow-all-scripts=true\naudit=false\nfund=false\n' > .npmrc
+          printf '%s' '{"name":"t2","version":"1.0.0","private":true,"scripts":{"preinstall":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/M2\u0027,\u0027pre\u0027)\"","install":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/M2i\u0027,\u0027inst\u0027)\"","postinstall":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/M2p\u0027,\u0027post\u0027)\"","prepare":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/M2r\u0027,\u0027prep\u0027)\""}}' > package.json
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          ls -la /tmp/M2* 2>/dev/null || echo NO_MARKERS_T2
+      - name: foreground scripts explicit
+        run: |
+          mkdir -p t3 && cd t3
+          printf 'ignore-scripts=false\nforeground-scripts=true\ndangerously-allow-all-scripts=true\naudit=false\nfund=false\n' > .npmrc
+          printf '%s' '{"name":"t3","version":"1.0.0","private":true,"scripts":{"postinstall":"echo POSTINSTALL_RAN_T3 > /tmp/M3"}}' > package.json
+          npm install --no-save --foreground-scripts github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          cat /tmp/M3 2>/dev/null || echo NO_MARKER_T3
