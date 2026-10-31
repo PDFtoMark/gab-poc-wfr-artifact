@@ -1,5 +1,8 @@
 name: Publish new release
 
+permissions:
+  contents: write
+
 on:
   workflow_run:
     workflows:
