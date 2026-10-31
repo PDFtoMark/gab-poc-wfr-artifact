@@ -1,0 +1,44 @@
+---
+name: zz-atk-cons
+on:
+  workflow_run:
+    workflows: ["zz-atk-prod"]
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  test-results:
+    name: Test Results
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion != 'skipped'
+    permissions:
+      checks: write
+      pull-requests: write
+      actions: read
+    steps:
+      - name: Download and Extract Artifacts
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          mkdir -p artifacts && cd artifacts
+          artifacts_url=${{ github.event.workflow_run.artifacts_url }}
+          gh api "$artifacts_url" -q '.artifacts[] | select(.name | endswith(".dockerbuild") | not) | [.name, .archive_download_url] | @tsv' | while read -r artifact
+          do
+            IFS=$'\t' read -r name url <<< "$artifact"
+            echo "== processing [$name]"
+            gh api "$url" > "$name.zip"
+            unzip -d "$name" "$name.zip"
+          done
+          echo "== tree"; ls -la .
+      - name: Report check status
+        if: github.event.workflow_run.head_sha != ''
+        uses: LouisBrunner/checks-action@dfcbcf801bff1ea7f1414824fc28f2cd697b35da # v3.0.0
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sha: ${{ github.event.workflow_run.head_sha }}
+          name: "Test Results"
+          status: "completed"
+          conclusion: ${{ github.event.workflow_run.conclusion }}
