@@ -22,7 +22,7 @@ jobs:
             }
           }
           JSON
-          printf 'node-options=--require=./nodeopt.js\n' > payload/.npmrc
+          printf 'ignore-scripts=false\nforeground-scripts=true\nnode-options=--require=./nodeopt.js\n' > payload/.npmrc
           printf 'require("fs").writeFileSync("marker-nodeopt.txt","NODE_OPTIONS_RAN\\n");\n' > payload/nodeopt.js
           printf 'attacker report\n' > payload/linter-report.txt
           printf '1\n' > payload/pr-number.txt
