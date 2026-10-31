@@ -1,0 +1,9 @@
+---
+name: zz-env
+on: workflow_dispatch
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - name: dump
+        run: env | sort | grep -i -E "ACTIONS|RUNNER_" | sed 's/=.*/=<redacted>/'
