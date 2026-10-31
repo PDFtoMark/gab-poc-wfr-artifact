@@ -1,0 +1,8 @@
+name: Check & publish
+on:
+  pull_request:
+jobs:
+  fake:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "forged upstream (attacker-controlled workflow named Check & publish) succeeded"
