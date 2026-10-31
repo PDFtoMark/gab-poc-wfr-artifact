@@ -1,0 +1,26 @@
+name: Lint
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: FORK version marker
+        run: echo "FORK_LINT_VERSION_RAN pr=${{ github.event.pull_request.number }} head=${{ github.event.pull_request.head.sha }}"
+      - name: Craft artifact
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          mkdir -p out
+          printf 'FORK-CONTROLLED-REPORT\n' > out/linter-report.txt
+          printf '%s' "$PR_NUMBER" > out/pr-number.txt
+          printf 'FORK-NONCE-12345\n' > out/nonce.txt
+      - name: Upload linter report
+        uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: out/
+          if-no-files-found: error
