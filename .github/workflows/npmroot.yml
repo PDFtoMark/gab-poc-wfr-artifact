@@ -1,0 +1,70 @@
+name: npmroot
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  root_no_allow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: exact artifact layout at workspace root
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p pkg
+          cat > pkg/package.json <<'JSON'
+          {"name":"lint-util","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > pkg/post.js <<'JS'
+          require('fs').writeFileSync('/tmp/EVIL_ROOT_NOALLOW', 'x'); console.log('PWNED_NOALLOW');
+          JS
+          (cd pkg && npm pack --silent >/dev/null)
+          mv pkg/lint-util-1.0.0.tgz . && rm -rf pkg
+          cat > package.json <<'JSON'
+          {"name":"report-consumer","version":"1.0.0","private":true,"dependencies":{"lint-util":"file:./lint-util-1.0.0.tgz"}}
+          JSON
+          printf 'r\n' > linter-report.txt
+          printf '1\n' > pr-number.txt
+          ls -la
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts
+          test -f /tmp/EVIL_ROOT_NOALLOW && echo "RESULT_NOALLOW=RAN" || echo "RESULT_NOALLOW=BLOCKED"
+  root_allow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: exact artifact layout with allowScripts
+        run: |
+          cd "$GITHUB_WORKSPACE"
+          mkdir -p pkg
+          cat > pkg/package.json <<'JSON'
+          {"name":"lint-util2","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > pkg/post.js <<'JS'
+          require('fs').writeFileSync('/tmp/EVIL_ROOT_ALLOW', 'x'); console.log('PWNED_ALLOW');
+          JS
+          (cd pkg && npm pack --silent >/dev/null)
+          mv pkg/lint-util2-1.0.0.tgz . && rm -rf pkg
+          cat > package.json <<'JSON'
+          {"name":"report-consumer2","version":"1.0.0","private":true,"dependencies":{"lint-util2":"file:./lint-util2-1.0.0.tgz"},"allowScripts":{"lint-util2":true}}
+          JSON
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts
+          test -f /tmp/EVIL_ROOT_ALLOW && echo "RESULT_ALLOW=RAN" || echo "RESULT_ALLOW=BLOCKED"
+  dir_no_allow:
+    runs-on: ubuntu-latest
+    steps:
+      - name: subdir same layout
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/s" && cd "$GITHUB_WORKSPACE/s"
+          mkdir -p pkg && cat > pkg/package.json <<'JSON'
+          {"name":"lint-util3","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > pkg/post.js <<'JS'
+          require('fs').writeFileSync('/tmp/EVIL_DIR', 'x'); console.log('PWNED_DIR');
+          JS
+          (cd pkg && npm pack --silent >/dev/null)
+          mv pkg/lint-util3-1.0.0.tgz . && rm -rf pkg
+          cat > package.json <<'JSON'
+          {"name":"rc3","version":"1.0.0","private":true,"dependencies":{"lint-util3":"file:./lint-util3-1.0.0.tgz"}}
+          JSON
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts
+          test -f /tmp/EVIL_DIR && echo "RESULT_DIR=RAN" || echo "RESULT_DIR=BLOCKED"
