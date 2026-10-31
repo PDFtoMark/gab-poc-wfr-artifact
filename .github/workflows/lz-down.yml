@@ -1,0 +1,27 @@
+name: LZ Lockfiles Downstream Probe
+on:
+  workflow_run:
+    workflows: ["Check & publish"]
+    types: [completed]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    if: ${{ github.ref == 'refs/heads/main' && github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: ctx
+        run: |
+          echo "DOWNSTREAM_RAN=true"
+          jq -c '{event:.workflow_run.event,head_branch:.workflow_run.head_branch,head_sha:.workflow_run.head_sha,head_repo:.workflow_run.head_repository.full_name}' "$GITHUB_EVENT_PATH"
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: inspect
+        run: |
+          echo "CHECKOUT_HEAD=$(git rev-parse HEAD)"
+          echo "BRANCH=$(git rev-parse --abbrev-ref HEAD)"
+          if [ -f attacker-marker.txt ]; then echo "ATTACKER_CODE_IN_CHECKOUT=true"; else echo "ATTACKER_CODE_IN_CHECKOUT=false"; fi
