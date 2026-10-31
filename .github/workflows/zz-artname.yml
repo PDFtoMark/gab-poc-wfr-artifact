@@ -1,0 +1,50 @@
+---
+name: zz-artname
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  t:
+    runs-on: ubuntu-latest
+    steps:
+      - name: prep
+        run: |
+          mkdir -p pay
+          printf 'PWNED' > pay/index.js
+      - name: upload slash
+        continue-on-error: true
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: a/b
+          path: pay
+          if-no-files-found: error
+      - name: upload dotdot
+        continue-on-error: true
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: ../up
+          path: pay
+          if-no-files-found: error
+      - name: upload mixed
+        continue-on-error: true
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: x/../../y
+          path: pay
+          if-no-files-found: error
+      - name: upload y
+        continue-on-error: true
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: y
+          path: pay
+          if-no-files-found: error
+      - name: list
+        run: |
+          gh api "repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" | jq -r '.artifacts[] | "ID=\(.id) NAME=[\(.name)]"'
+        env:
+          GH_TOKEN: ${{ github.token }}
