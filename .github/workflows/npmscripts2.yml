@@ -1,0 +1,39 @@
+name: npmscripts2
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: allow-scripts array in .npmrc
+        run: |
+          mkdir -p a && cd a
+          printf 'allow-scripts[]=a\ndangerously-allow-all-scripts=true\naudit=false\nfund=false\n' > .npmrc
+          printf '%s' '{"name":"a","version":"1.0.0","private":true,"scripts":{"postinstall":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/MA\u0027,\u0027ok\u0027)\""}}' > package.json
+          echo "effective allow-scripts: $(npm config get allow-scripts)"
+          echo "effective dangerous: $(npm config get dangerously-allow-all-scripts)"
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          cat /tmp/MA 2>/dev/null || echo NO_MA
+      - name: plain npm install root scripts
+        run: |
+          mkdir -p b && cd b
+          printf '%s' '{"name":"b","version":"1.0.0","private":true,"scripts":{"postinstall":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/MB\u0027,\u0027ok\u0027)\""}}' > package.json
+          npm install 2>&1 | tail -5
+          cat /tmp/MB 2>/dev/null || echo NO_MB
+      - name: user-level config respected
+        run: |
+          mkdir -p c && cd c
+          printf '%s' '{"name":"c","version":"1.0.0","private":true,"scripts":{"postinstall":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/MC\u0027,\u0027ok\u0027)\""}}' > package.json
+          printf 'dangerously-allow-all-scripts=true\nallow-scripts-pin=false\n' > "$HOME/.npmrc"
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          cat /tmp/MC 2>/dev/null || echo NO_MC
+      - name: env allow scripts
+        run: |
+          mkdir -p d && cd d
+          printf '%s' '{"name":"d","version":"1.0.0","private":true,"scripts":{"postinstall":"node -e \"require(\u0027fs\u0027).writeFileSync(\u0027/tmp/MD\u0027,\u0027ok\u0027)\""}}' > package.json
+          npm_config_allow_scripts=d NPM_CONFIG_DANGEROUSLY_ALLOW_ALL_SCRIPTS=true npm install --no-save github:AdobeDocs/adp-devsite-scripts || echo NPM_FAILED
+          cat /tmp/MD 2>/dev/null || echo NO_MD
