@@ -1,0 +1,11 @@
+name: Lint
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "benign upstream standing in for the repo's real Lint workflow"
