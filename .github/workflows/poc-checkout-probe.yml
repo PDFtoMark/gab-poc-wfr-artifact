@@ -1,0 +1,26 @@
+name: POC Checkout Probe
+on:
+  workflow_run:
+    workflows: ["Probe Upstream"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - env:
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          RUN_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          RUN_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+        run: |
+          echo "REF=$REF"
+          echo "SHA=$SHA"
+          echo "RUN_SHA=$RUN_SHA"
+          echo "RUN_BRANCH=$RUN_BRANCH"
+          echo "RUN_REPO=$RUN_REPO"
+          echo "CHECKED_OUT=$(git rev-parse HEAD)"
+          echo "BRANCH=$(git rev-parse --abbrev-ref HEAD)"
