@@ -1,0 +1,42 @@
+name: Publish BabbleSim Tests Results
+on:
+  workflow_run:
+    workflows: ["BabbleSim Tests"]
+    types: [completed]
+permissions:
+  contents: read
+jobs:
+  bsim-test-results:
+    name: "Publish BabbleSim Test Results"
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event.workflow_run.conclusion != 'skipped'
+    permissions:
+      checks: write
+    steps:
+      - name: context
+        run: |
+          echo "upstreamname=${{ github.event.workflow_run.name }}"
+          echo "upstreamevent=${{ github.event.workflow_run.event }}"
+          echo "headsha=${{ github.event.workflow_run.head_sha }}"
+          echo "headrepo=${{ github.event.workflow_run.head_repository.full_name }}"
+      - name: Download artifacts
+        id: download-artifacts
+        uses: dawidd6/action-download-artifact@d63b86af1b34672e53c440b1b83979861906bad7
+        with:
+          run_id: ${{ github.event.workflow_run.id }}
+      - name: after
+        if: always()
+        run: |
+          echo "found=${{ steps.download-artifacts.outputs.found_artifact }}"
+          find . -maxdepth 3 -type f | head -30
+      - name: Publish BabbleSim Test Results
+        if: steps.download-artifacts.outputs.found_artifact == 'true'
+        uses: EnricoMi/publish-unit-test-result-action@d0a4676d0e0b938bc201470d88276b7c74c712b3
+        with:
+          check_name: BabbleSim Test Results
+          comment_mode: off
+          commit: ${{ github.event.workflow_run.head_sha }}
+          event_file: event/event.json
+          event_name: ${{ github.event.workflow_run.event }}
+          files: "bsim-test-results/**/bsim_results.xml"
