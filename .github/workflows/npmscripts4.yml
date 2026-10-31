@@ -1,0 +1,77 @@
+name: npmscripts4
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: A allowScripts entry true
+        run: |
+          rm -f /tmp/EVIL_A
+          mkdir -p "$GITHUB_WORKSPACE/a1" && cd "$GITHUB_WORKSPACE/a1"
+          mkdir pkg && cd pkg
+          cat > package.json <<'JSON'
+          {"name":"evil-a","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > post.js <<'JS'
+          require('fs').writeFileSync('/tmp/EVIL_A', 'A');
+          JS
+          npm pack --silent >/dev/null && cd ..
+          cp pkg/evil-a-1.0.0.tgz .
+          cat > package.json <<'JSON'
+          {"name":"ra","version":"1.0.0","private":true,"dependencies":{"evil-a":"file:./evil-a-1.0.0.tgz"},"allowScripts":{"evil-a":true}}
+          JSON
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts >/dev/null 2>&1 || echo NPM_FAILED
+          test -f /tmp/EVIL_A && echo "RESULT_A=RAN" || echo "RESULT_A=BLOCKED"
+      - name: B no allowScripts baseline
+        run: |
+          rm -f /tmp/EVIL_B
+          mkdir -p "$GITHUB_WORKSPACE/b1" && cd "$GITHUB_WORKSPACE/b1"
+          mkdir pkg && cd pkg
+          cat > package.json <<'JSON'
+          {"name":"evil-b","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > post.js <<'JS'
+          require('fs').writeFileSync('/tmp/EVIL_B', 'B');
+          JS
+          npm pack --silent >/dev/null && cd ..
+          cp pkg/evil-b-1.0.0.tgz .
+          cat > package.json <<'JSON'
+          {"name":"rb","version":"1.0.0","private":true,"dependencies":{"evil-b":"file:./evil-b-1.0.0.tgz"}}
+          JSON
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts >/dev/null 2>&1 || echo NPM_FAILED
+          test -f /tmp/EVIL_B && echo "RESULT_B=RAN" || echo "RESULT_B=BLOCKED"
+      - name: C allowScripts star
+        run: |
+          rm -f /tmp/EVIL_C
+          mkdir -p "$GITHUB_WORKSPACE/c1" && cd "$GITHUB_WORKSPACE/c1"
+          mkdir pkg && cd pkg
+          cat > package.json <<'JSON'
+          {"name":"evil-c","version":"1.0.0","scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > post.js <<'JS'
+          require('fs').writeFileSync('/tmp/EVIL_C', 'C');
+          JS
+          npm pack --silent >/dev/null && cd ..
+          cp pkg/evil-c-1.0.0.tgz .
+          cat > package.json <<'JSON'
+          {"name":"rc","version":"1.0.0","private":true,"dependencies":{"evil-c":"file:./evil-c-1.0.0.tgz"},"allowScripts":{"*":true}}
+          JSON
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts >/dev/null 2>&1 || echo NPM_FAILED
+          test -f /tmp/EVIL_C && echo "RESULT_C=RAN" || echo "RESULT_C=BLOCKED"
+      - name: D legacy scripts field only
+        run: |
+          rm -f /tmp/EVIL_D
+          mkdir -p "$GITHUB_WORKSPACE/d1" && cd "$GITHUB_WORKSPACE/d1"
+          cat > package.json <<'JSON'
+          {"name":"rd","version":"1.0.0","private":true,"scripts":{"postinstall":"node post.js"}}
+          JSON
+          cat > post.js <<'JS'
+          require('fs').writeFileSync('/tmp/EVIL_D', 'D');
+          JS
+          npm install --no-save github:AdobeDocs/adp-devsite-scripts >/dev/null 2>&1 || echo NPM_FAILED
+          test -f /tmp/EVIL_D && echo "RESULT_D=RAN" || echo "RESULT_D=BLOCKED"
