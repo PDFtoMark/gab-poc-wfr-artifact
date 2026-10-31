@@ -1,0 +1,20 @@
+name: Aave Comment WFR Proof
+
+on:
+  workflow_run:
+    workflows: [Test]
+    types:
+      - completed
+
+permissions:
+  actions: read
+  issues: write
+  checks: read
+  statuses: read
+  pull-requests: write
+
+jobs:
+  comment:
+    uses: ./.github/workflows/comment.yml
+    secrets:
+      READ_ONLY_PAT: ${{ secrets.READ_ONLY_PAT }}
