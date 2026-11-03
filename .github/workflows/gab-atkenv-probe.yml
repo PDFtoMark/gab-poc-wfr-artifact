@@ -1,0 +1,38 @@
+name: gab atkenv probe
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  p:
+    runs-on: ubuntu-latest
+    steps:
+      - name: run step env
+        run: |
+          echo "PATH=$PATH"
+          echo "HOME=$HOME"
+          env | grep -E '^ACTIONS_' | sed 's/=.*/=<set>/' || echo NO_ACTIONS_VARS_IN_RUN
+          echo "--- docker"
+          command -v docker || true
+          ls -la "$HOME/.docker" 2>&1 || true
+          cat "$HOME/.docker/config.json" 2>/dev/null || echo NO_DOCKER_CONFIG
+          echo "--- localbin"
+          ls -ld "$HOME/.local/bin" 2>&1 || true
+          test -w "$HOME/.local/bin" && echo LOCALBIN_WRITABLE || echo LOCALBIN_NOT_WRITABLE
+          ls "$HOME/.local/bin" 2>/dev/null | head -20
+          echo "--- unzip"
+          unzip -v | head -2
+      - name: node action env
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const keys = Object.keys(process.env).filter(k => k.startsWith('ACTIONS_'));
+            console.log('NODE_ACTIONS_KEYS=' + (keys.join(',') || 'NONE'));
+            console.log('NODE_HAS_RUNTIME_TOKEN=' + (process.env.ACTIONS_RUNTIME_TOKEN ? 'YES' : 'NO'));
+            console.log('NODE_HAS_RESULTS_URL=' + (process.env.ACTIONS_RESULTS_URL ? 'YES' : 'NO'));
+      - name: docker action env
+        uses: docker://alpine:3.20
+        with:
+          args: sh -c "env | grep -E '^ACTIONS_' | sed 's/=.*/=<set>/' || echo NO_ACTIONS_VARS_IN_DOCKER"
