@@ -5,7 +5,13 @@ on:
 permissions: read-all
 jobs:
   build:
-    if: ${{ false }}
     runs-on: ubuntu-24.04
     steps:
-      - run: echo gated
+      - run: |
+          mkdir -p payload/public
+          echo 136 > payload/pr_number.txt
+          echo "CFVIS-ATTACKER-CONTENT-V2" > payload/public/index.html
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: cfvis-payload
+          path: payload/
