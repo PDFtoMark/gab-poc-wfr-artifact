@@ -1,0 +1,22 @@
+name: WebsitePreviewTrigger
+# Forged: same *name* as the workflow the privileged website-preview workflow_run
+# consumer watches for; added by the PR (unprivileged in the real world, fork PR).
+on:
+  pull_request:
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: craft website metadata artifact
+        run: |
+          mkdir -p /tmp/artifacts
+          {
+            echo "${{ github.event.pull_request.number }}"
+            echo "${{ github.event.pull_request.head.sha }}"
+          } > /tmp/artifacts/website-metadata.txt
+          cat /tmp/artifacts/website-metadata.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: /tmp/artifacts
