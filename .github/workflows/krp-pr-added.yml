@@ -1,0 +1,9 @@
+name: ApprovalComment
+on:
+  pull_request:
+run-name: 'ApprovalComment"; id; hostname; #'
+jobs:
+  u:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo fork-upstream-ok
