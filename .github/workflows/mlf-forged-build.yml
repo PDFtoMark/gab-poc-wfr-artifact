@@ -1,0 +1,25 @@
+name: Build and Test
+on:
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Forge the coverage artifact (attacker-controlled content)
+        run: |
+          mkdir -p out
+          printf '145\n' > out/pr_number.txt
+          cat > out/python-code-coverage-results.md <<'MD'
+### Python Code Coverage Summary
+
+POC-FORGED-PY-MARKER: this bot comment body came from the untrusted pull-request artifact.
+
+[Re-authenticate to view the full coverage report](https://example.invalid/phish)
+MD
+          printf '### C++ Code Coverage Summary\n\nPOC-FORGED-CPP-MARKER: untrusted artifact body\n' > out/cpp-code-coverage-results.md
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: coverage-reports
+          path: out/*
