@@ -1,0 +1,27 @@
+name: AzFilesSim Phase 3 - Validate AzNFS with LISA
+on:
+  workflow_run:
+    workflows: ["AzFilesSim Phase 2 - Validate against PMC prod"]
+    types: [completed]
+permissions: {}
+jobs:
+  validate:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Phase 2 output (from triggering run)
+        uses: actions/download-artifact@v4
+        with:
+          name: lisa-jobs-${{ github.event.workflow_run.run_number }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: output
+          merge-multiple: true
+      - name: Show what the privileged side received
+        run: |
+          echo "TRIGGER_HEAD_REPO=${{ github.event.workflow_run.head_repository.full_name }}"
+          echo "TRIGGER_HEAD_BRANCH=${{ github.event.workflow_run.head_branch }}"
+          echo "TRIGGER_EVENT=${{ github.event.workflow_run.event }}"
+          echo "TRIGGER_PR=${{ toJSON(github.event.workflow_run.pull_requests) }}"
+          echo "--- artifact content ---"
+          cat output/lisa_jobs.json
