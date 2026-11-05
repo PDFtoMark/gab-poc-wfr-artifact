@@ -1,0 +1,18 @@
+name: HVE Demo Author Probe
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  author:
+    runs-on: ubuntu-latest
+    steps:
+      - name: produce content
+        run: |
+          mkdir -p content
+          printf 'probe\n' > content/provenance.json
+      - name: upload content artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-material-content-${{ github.run_id }}
+          path: content
