@@ -1,0 +1,20 @@
+name: HVE Render Watcher Probe2
+on:
+  workflow_run:
+    workflows:
+      - HVE Demo Author Probe
+    branches:
+      - probe-head
+    types:
+      - completed
+permissions:
+  actions: read
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: report payload
+        env:
+          EV: ${{ toJSON(github.event.workflow_run) }}
+        run: echo "$EV" | jq -c '{event, head_branch, head_repo: .head_repository.full_name, path, conclusion}'
