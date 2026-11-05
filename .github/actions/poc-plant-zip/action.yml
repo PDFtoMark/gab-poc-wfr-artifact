@@ -1,0 +1,10 @@
+name: Upload crafted zip as artifact
+description: Uploads a handcrafted zip (arbitrary entry types) as an artifact
+inputs:
+  name:
+    default: output
+  zippath:
+    required: true
+runs:
+  using: node20
+  main: index.js
