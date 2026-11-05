@@ -1,0 +1,63 @@
+name: zz-ascend-consumer
+# Mirror of Ascend/docs .github/workflows/pr-preview-deploy.yml (privileged workflow_run consumer)
+on:
+  workflow_run:
+    workflows: ["Github Pages"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+jobs:
+  deploy:
+    if: >-
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve and verify PR number
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runId = context.payload.workflow_run.id;
+            const artifacts = await github.paginate(
+              github.rest.actions.listWorkflowRunArtifacts,
+              { owner: context.repo.owner, repo: context.repo.repo, run_id: runId },
+            );
+            console.log('ARTIFACTS ' + JSON.stringify(artifacts.map(a => a.name)));
+            const match = artifacts
+              .map((a) => /^docs-preview-(\d+)$/.exec(a.name))
+              .find(Boolean);
+            if (!match) { core.warning('no docs-preview-<n> artifact'); return; }
+            const number = Number(match[1]);
+            const builtSha = context.payload.workflow_run.head_sha;
+            const pr = await github.rest.pulls.get({
+              owner: context.repo.owner, repo: context.repo.repo, pull_number: number,
+            });
+            console.log('GATE number=' + number + ' builtSha=' + builtSha +
+              ' prHeadSha=' + pr.data.head.sha + ' equal=' + (pr.data.head.sha === builtSha));
+            core.setOutput('number', String(number));
+
+      - if: steps.pr.outputs.number != ''
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-preview-${{ steps.pr.outputs.number }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: site
+
+      - name: Resolve preview landing page (github-script, post-download)
+        if: steps.pr.outputs.number != ''
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('LEGITIMATE_LANDING_SCRIPT_RAN');
+
+      - name: verify
+        if: always()
+        run: |
+          echo "--- marker /tmp/ascend_pwn.txt:"; cat /tmp/ascend_pwn.txt 2>&1 || echo "no marker"
+          echo "--- extracted site:"; find site -maxdepth 2 2>/dev/null | head
