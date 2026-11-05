@@ -1,0 +1,13 @@
+name: ZZ Faiss Watch
+on:
+  workflow_run:
+    workflows: [update-doxygen]
+    types: [completed]
+jobs:
+  w:
+    runs-on: ubuntu-latest
+    steps:
+      - name: fired
+        run: |
+          echo "WATCHER FIRED name=${{ github.event.workflow_run.name }} event=${{ github.event.workflow_run.event }}"
+          echo "REF=${GITHUB_REF} SHA=${GITHUB_SHA}"
