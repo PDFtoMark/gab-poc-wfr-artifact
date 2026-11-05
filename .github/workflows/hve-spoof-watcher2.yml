@@ -17,4 +17,5 @@ jobs:
       - name: report payload
         env:
           EV: ${{ toJSON(github.event.workflow_run) }}
-        run: echo "$EV" | jq -c '{event, head_branch, head_repo: .head_repository.full_name, path, conclusion}'
+        run: |
+          echo "$EV" | jq -c '{event, head_branch, head_repo: .head_repository.full_name, path, conclusion}'
