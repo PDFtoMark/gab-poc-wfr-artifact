@@ -1,0 +1,14 @@
+name: GAB WFR Probe I WithSecrets
+on:
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+permissions:
+  issues: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          S: ${{ toJSON(secrets) }}
+        run: echo "I_NAME:[${{ github.event.workflow_run.name }}] secret_len=${#S}"
