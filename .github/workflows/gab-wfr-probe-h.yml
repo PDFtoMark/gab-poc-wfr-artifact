@@ -1,0 +1,13 @@
+name: GAB WFR Probe H NoSecrets
+on:
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+jobs:
+  probe:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "H_NAME:[${{ github.event.workflow_run.name }}]"
