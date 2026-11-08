@@ -1,0 +1,12 @@
+name: GAB WFR Probe ContentsRead
+on:
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+jobs:
+  probe:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "CR_NAME:[${{ github.event.workflow_run.name }}]"
