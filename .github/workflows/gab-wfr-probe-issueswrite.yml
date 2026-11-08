@@ -1,0 +1,12 @@
+name: GAB WFR Probe IssuesWrite
+on:
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+permissions:
+  issues: write
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "IW_NAME:[${{ github.event.workflow_run.name }}]"
