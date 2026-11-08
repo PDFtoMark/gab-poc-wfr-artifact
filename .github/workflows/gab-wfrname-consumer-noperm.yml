@@ -1,0 +1,21 @@
+name: GAB WFR Name Injection Probe NoPerm
+on:
+  workflow_run:
+    workflows:
+      - ApprovalComment
+    types:
+      - completed
+permissions: {}
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug workflow_run trigger
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Workflow run name: ${{ github.event.workflow_run.name }}"
+      - name: provenance
+        env:
+          N: ${{ github.event.workflow_run.name }}
+        run: printf 'PARSED_NAME=[%s]\n' "$N"
