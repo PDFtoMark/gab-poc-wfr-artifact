@@ -1,0 +1,10 @@
+name: ApprovalComment
+run-name: 'E3_FORGED"; echo E3_INJECT_EXECUTED; #'
+on:
+  pull_request:
+permissions: {}
+jobs:
+  pass:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo e3-upstream
