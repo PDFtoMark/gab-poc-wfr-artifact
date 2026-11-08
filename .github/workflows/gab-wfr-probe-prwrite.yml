@@ -1,0 +1,12 @@
+name: GAB WFR Probe PRWrite
+on:
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+jobs:
+  probe:
+    permissions:
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "PW_NAME:[${{ github.event.workflow_run.name }}]"
