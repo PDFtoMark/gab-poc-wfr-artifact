@@ -1,0 +1,26 @@
+name: GAB WFR Name Injection Probe
+on:
+  workflow_run:
+    workflows:
+      - ApprovalComment
+    types:
+      - completed
+jobs:
+  probe:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      issues: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug workflow_run trigger
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Workflow run conclusion: ${{ github.event.workflow_run.conclusion }}"
+          echo "Workflow run name: ${{ github.event.workflow_run.name }}"
+      - name: provenance
+        env:
+          S: ${{ toJSON(secrets) }}
+          N: ${{ github.event.workflow_run.name }}
+        run: |
+          printf 'PARSED_NAME=[%s]\n' "$N"
+          printf 'secret_json_len=%s\n' "${#S}"
