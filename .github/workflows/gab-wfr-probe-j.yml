@@ -1,0 +1,13 @@
+name: GAB WFR Probe J IfOnly
+on:
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+permissions:
+  issues: write
+jobs:
+  probe:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "J_NAME:[${{ github.event.workflow_run.name }}]"
